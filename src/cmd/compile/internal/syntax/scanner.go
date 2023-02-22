@@ -26,13 +26,13 @@ const (
 	comments   uint = 1 << iota // call handler for all comments
 	directives                  // call handler for directives only
 )
-
+//scanner 结构体会持有当前扫描的数据源文件、启用的模式和当前被扫描到的 Token。
 type scanner struct {
 	source
 	mode   uint
-	nlsemi bool // if set '\n' and EOF translate to ';'
+	nlsemi bool // if set '\n' and EOF translate to ';'   //结尾，程序结尾符号
 
-	// current token, valid after calling next()
+	// current token, valid after calling next()    //next之后有值
 	line, col uint
 	blank     bool // line is blank up to col
 	tok       token
@@ -85,6 +85,7 @@ func (s *scanner) setLit(kind LitKind, ok bool) {
 // If the scanner mode includes the directives (but not the comments)
 // flag, only comments containing a //line, /*line, or //go: directive
 // are reported, in the same way as regular comments.
+//词法分析主要是由这个函数驱动的
 func (s *scanner) next() {
 	nlsemi := s.nlsemi
 	s.nlsemi = false
@@ -94,7 +95,7 @@ redo:
 	s.stop()
 	startLine, startCol := s.pos()
 	for s.ch == ' ' || s.ch == '\t' || s.ch == '\n' && !nlsemi || s.ch == '\r' {
-		s.nextch()
+		s.nextch()   //或取最近的未被解析的字符，这是遇到换行，直接跳过
 	}
 
 	// token start
