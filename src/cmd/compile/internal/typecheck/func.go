@@ -661,7 +661,7 @@ func tcMake(n *ir.CallExpr) ir.Node {
 			n.SetType(nil)
 			return n
 		}
-		nn = ir.NewMakeExpr(n.Pos(), ir.OMAKESLICE, l, r)
+		nn = ir.NewMakeExpr(n.Pos(), ir.OMAKESLICE, l, r)           //校验都合理的话，
 
 	case types.TMAP:
 		if i < len(args) {

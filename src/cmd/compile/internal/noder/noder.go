@@ -36,7 +36,7 @@ func LoadPackage(filenames []string) {
 		}
 		noders[i] = &p
 	}
-
+	//使用协程，同时对多个文件进行词法、语法分析
 	// Move the entire syntax processing logic into a separate goroutine to avoid blocking on the "sem".
 	go func() {
 		for i, filename := range filenames {

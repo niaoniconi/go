@@ -41,7 +41,7 @@ func MakeInit() {
 	fn.SetIsPackageInit(true)
 
 	// Outline (if legal/profitable) global map inits.
-	newfuncs := []*ir.Func{}
+	newfuncs := []*ir.Func{}               //函数节点
 	nf, newfuncs = staticinit.OutlineMapInits(nf)
 
 	// Suppress useless "can inline" diagnostics.
@@ -56,7 +56,7 @@ func MakeInit() {
 
 	typecheck.Func(fn)
 	ir.WithFunc(fn, func() {
-		typecheck.Stmts(nf)
+		typecheck.Stmts(nf)          //typecheck函数生效中，对slice中每个元素进行check，再递归执行
 	})
 	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
 	if base.Debug.WrapGlobalMapDbg > 1 {

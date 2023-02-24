@@ -26,6 +26,7 @@ const (
 	comments   uint = 1 << iota // call handler for all comments
 	directives                  // call handler for directives only
 )
+
 //scanner 结构体会持有当前扫描的数据源文件、启用的模式和当前被扫描到的 Token。
 type scanner struct {
 	source
@@ -95,7 +96,7 @@ redo:
 	s.stop()
 	startLine, startCol := s.pos()
 	for s.ch == ' ' || s.ch == '\t' || s.ch == '\n' && !nlsemi || s.ch == '\r' {
-		s.nextch()   //或取最近的未被解析的字符，这是遇到换行，直接跳过
+		s.nextch() //或取最近的未被解析的字符，这是遇到换行，直接跳过
 	}
 
 	// token start

@@ -28,6 +28,8 @@ var (
 	NeedRuntimeType = func(*types.Type) {}
 )
 
+//这边全部是类型检查
+
 func AssignExpr(n ir.Node) ir.Node { return typecheck(n, ctxExpr|ctxAssign) }
 func Expr(n ir.Node) ir.Node       { return typecheck(n, ctxExpr) }
 func Stmt(n ir.Node) ir.Node       { return typecheck(n, ctxStmt) }
@@ -90,11 +92,14 @@ func tracePrint(title string, n ir.Node) func(np *ir.Node) {
 		fmt.Printf("%s: %s=> %p %s %v tc=%d type=%L\n", pos, indent, n, op, n, tc, typ)
 	}
 }
-
+//iota，特殊常量，可以认为是一个可以被编译器修改的常量。参考 https://www.runoob.com/go/go-constants.html
+//iota 在 const关键字出现时将被重置为 0(const 内部的第一行之前)，const 中每新增一行常量声明将使 iota 计数一次(iota 可理解为 const 语句块中的行索引)。
+//iota 可以被用作枚举值：
+//第一个 iota 等于 0，每当 iota 在新的一行被使用时，它的值都会自动加 1；
 const (
-	ctxStmt    = 1 << iota // evaluated at statement level
-	ctxExpr                // evaluated in value context
-	ctxType                // evaluated in type context
+	ctxStmt    = 1 << iota // evaluated at statement level   iota=0，1左移0位，ctxExpr=1
+	ctxExpr                // evaluated in value context     iota=1，1左移1位，ctxExpr=2
+	ctxType                // evaluated in type context		 iota=1，1左移2位，ctxExpr=4
 	ctxCallee              // call-only expressions are ok
 	ctxMultiOK             // multivalue function returns are ok
 	ctxAssign              // assigning to expression
@@ -455,24 +460,24 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.StarExpr)
 		return tcStar(n, top)
 
-	// x op= y
+		// x op= y   X AsOp= Y (x += y)
 	case ir.OASOP:
 		n := n.(*ir.AssignOpStmt)
-		n.X, n.Y = Expr(n.X), Expr(n.Y)
-		checkassign(n.X)
-		if n.IncDec && !okforarith[n.X.Type().Kind()] {
+		n.X, n.Y = Expr(n.X), Expr(n.Y)   //对x，y进行类型校验，并且赋值到n
+		checkassign(n.X)    //检查x
+		if n.IncDec && !okforarith[n.X.Type().Kind()] {  //IncDec --/++   okforarith，一个[type]bool的map，这个是判断类型可不可以用以运算
 			base.Errorf("invalid operation: %v (non-numeric type %v)", n, n.X.Type())
 			return n
 		}
 		switch n.AsOp {
-		case ir.OLSH, ir.ORSH:
+		case ir.OLSH, ir.ORSH:   //左移右移
 			n.X, n.Y, _ = tcShift(n, n.X, n.Y)
-		case ir.OADD, ir.OAND, ir.OANDNOT, ir.ODIV, ir.OMOD, ir.OMUL, ir.OOR, ir.OSUB, ir.OXOR:
+		case ir.OADD, ir.OAND, ir.OANDNOT, ir.ODIV, ir.OMOD, ir.OMUL, ir.OOR, ir.OSUB, ir.OXOR:  //-+*%/
 			n.X, n.Y, _ = tcArith(n, n.AsOp, n.X, n.Y)
 		default:
-			base.Fatalf("invalid assign op: %v", n.AsOp)
+			base.Fatalf("invalid assign op: %v", n.AsOp)   //都不是，报错
 		}
-		return n
+		return n      //返回n节点
 
 	// logical operators
 	case ir.OANDAND, ir.OOROR:
@@ -645,6 +650,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.ConvExpr)
 		return tcConv(n)
 
+		//make的解析
 	case ir.OMAKE:
 		n := n.(*ir.CallExpr)
 		return tcMake(n)
