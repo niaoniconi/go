@@ -76,8 +76,8 @@ func Parse(base *PosBase, src io.Reader, errh ErrorHandler, pragh PragmaHandler,
 
 	var p parser
 	p.init(base, src, errh, pragh, mode)
-	p.next()
-	return p.fileOrNil(), p.first
+	p.next()     //词法分析
+	return p.fileOrNil(), p.first     //语法分析
 }
 
 // ParseFile behaves like Parse but it reads the source from the named file.

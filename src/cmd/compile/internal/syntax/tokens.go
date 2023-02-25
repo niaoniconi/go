@@ -7,7 +7,7 @@ package syntax
 type token uint
 
 //go:generate stringer -type token -linecomment tokens.go
-
+//定义了 Go 语言中支持的全部 Token 类型，所有的 token 类型都是正整数
 const (
 	_    token = iota
 	_EOF       // EOF

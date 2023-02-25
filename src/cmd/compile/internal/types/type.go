@@ -624,13 +624,14 @@ func NewMap(k, v *Type) *Type {
 // This allows the backend to run concurrently.
 var NewPtrCacheEnabled = true
 
-// NewPtr returns the pointer type pointing to t.
+// NewPtr returns the pointer type pointing to t
+//函数的主要作用是根据类型生成指向这些类型的指针，同时它会根据编译器的配置将生成的指针类型缓存在当前类型中，优化类型指针的获取效率：
 func NewPtr(elem *Type) *Type {
 	if elem == nil {
 		base.Fatalf("NewPtr: pointer to elem Type is nil")
 	}
 
-	if t := elem.cache.ptr; t != nil {
+	if t := elem.cache.ptr; t != nil {   //先判断类型缓存里是不是已经有了指针
 		if t.Elem() != elem {
 			base.Fatalf("NewPtr: elem mismatch")
 		}
@@ -639,12 +640,12 @@ func NewPtr(elem *Type) *Type {
 		}
 		return t
 	}
-
+	//没有再new
 	t := newType(TPTR)
 	t.extra = Ptr{Elem: elem}
-	t.width = int64(PtrSize)
-	t.align = uint8(PtrSize)
-	if NewPtrCacheEnabled {
+	t.width = int64(PtrSize)		  //指针长度
+	t.align = uint8(PtrSize)		  //不知道是什么东西
+	if NewPtrCacheEnabled {           //存入缓存
 		elem.cache.ptr = t
 	}
 	if elem.HasShape() {

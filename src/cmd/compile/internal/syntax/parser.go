@@ -179,7 +179,9 @@ func trailingDigits(text string) (uint, uint, bool) {
 	n, err := strconv.ParseUint(text[i+1:], 10, 0)
 	return uint(i + 1), uint(n), err == nil
 }
-
+/**
+只是用于快速判断一些语句中的关键字，如果当前解析器中的 Token 是传入的 Token 就会直接跳过该 Token 并返回 true
+ */
 func (p *parser) got(tok token) bool {
 	if p.tok == tok {
 		p.next()
@@ -187,7 +189,9 @@ func (p *parser) got(tok token) bool {
 	}
 	return false
 }
-
+/**
+对got的简单封装，，如果当前 Token 不是我们期望的，就会立刻返回语法错误并结束这次编译。
+ */
 func (p *parser) want(tok token) {
 	if !p.got(tok) {
 		p.syntaxError("expected " + tokstring(tok))
@@ -502,6 +506,15 @@ func (p *parser) list(context string, sep, close token, f func() bool) Pos {
 	return pos
 }
 
+/**
+它的主要作用就是找出批量的定义，我们可以简单举一个例子：
+var (
+   a int
+   b int
+)
+这两个变量其实属于同一个组（Group），各种顶层定义的结构体 parser.varDecl,parser.constDecl,
+在进行语法分析时有一个额外的参数,group,就是通过appendGroup方法传递进去的
+*/
 // appendGroup(f) = f | "(" { f ";" } ")" . // ";" is optional before ")"
 func (p *parser) appendGroup(list []Decl, f func(*Group) Decl) []Decl {
 	if p.tok == _Lparen {

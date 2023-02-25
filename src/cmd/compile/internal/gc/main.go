@@ -79,9 +79,11 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	if os.Getenv("GOGC") == "" { // GOGC set disables starting heap adjustment
 		// More processors will use more heap, but assume that more memory is available.
 		// So 1 processor -> 40MB, 4 -> 64MB, 12 -> 128MB
+		//调整开始gc的heap的大小
 		base.AdjustStartingHeap(uint64(32+8*base.Flag.LowerC) << 20)
 	}
 
+	//梳理一下包的路径
 	types.LocalPkg = types.NewPkg(base.Ctxt.Pkgpath, "")
 
 	// pseudo-package, for scoping
@@ -193,6 +195,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	typecheck.InitUniverse()
 	typecheck.InitRuntime()
 
+	//在这开始词法分析和语义分析,noder就是放节点的地方
 	// Parse and typecheck input.
 	noder.LoadPackage(flag.Args())
 
@@ -207,6 +210,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	dwarfgen.RecordPackageName()
 
+	//配置初始化，天哪1.20和1.14的编译差太多了
 	// Prepare for backend processing. This must happen before pkginit,
 	// because it generates itabs for initializing global variables.
 	ssagen.InitConfig()
@@ -220,6 +224,8 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// Create "init" function for package-scope variable initialization
 	// statements, if any.
 	//
+	//在这边执行了typecheck在这个函数里面，反正我觉得是typecheck部分
+	//
 	// Note: This needs to happen early, before any optimizations. The
 	// Go spec defines a precise order than initialization should be
 	// carried out in, and even mundane optimizations like dead code
@@ -232,10 +238,12 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		coverage.FixupInit(cnames)
 	}
 
+
+	//typecheck.Target.Decls： Top-level declarations.
 	// Eliminate some obviously dead code.
 	// Must happen after typechecking.
 	for _, n := range typecheck.Target.Decls {
-		if n.Op() == ir.ODCLFUNC {
+		if n.Op() == ir.ODCLFUNC {                         // func f() or func (r) f()
 			deadcode.Func(n.(*ir.Func))
 		}
 	}
@@ -282,11 +290,11 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// and doesn't benefit from dead-coding or inlining.
 	symABIs.GenABIWrappers()
 
-	// Escape analysis.
-	// Required for moving heap allocations onto stack,
+	// Escape analysis.  逃逸分析
+	// Required for moving heap allocations onto stack,     把怼堆分配移到栈所需要的
 	// which in turn is required by the closure implementation,
 	// which stores the addresses of stack variables into the closure.
-	// If the closure does not escape, it needs to be on the stack
+	// If the closure does not escape, it needs to be on the stack      闭包没有逃逸的话，必须在栈上
 	// or else the stack copier will not update it.
 	// Large values are also moved off stack in escape analysis;
 	// because large values may contain pointers, it must happen early.
@@ -307,10 +315,10 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// Don't use range--walk can add functions to Target.Decls.
 	base.Timer.Start("be", "compilefuncs")
 	fcount := int64(0)
-	for i := 0; i < len(typecheck.Target.Decls); i++ {
+	for i := 0; i < len(typecheck.Target.Decls); i++ {                       //遍历顶部节点
 		if fn, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
 			// Don't try compiling dead hidden closure.
-			if fn.IsDeadcodeClosure() {
+			if fn.IsDeadcodeClosure() {                     //没用的闭包，不翻译
 				continue
 			}
 			enqueueFunc(fn)

@@ -57,7 +57,7 @@ type (
 	valueRewriter func(*Value) bool
 )
 
-type Types struct {
+type Types struct {               //存储了几乎所有类型的指针
 	Bool       *types.Type
 	Int8       *types.Type
 	Int16      *types.Type
