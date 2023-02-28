@@ -5,7 +5,7 @@
 // NOTE: If you change this file you must run "go generate"
 // to update builtin.go. This is not done automatically
 // to avoid depending on having a working compiler binary.
-
+//https://pkg.go.dev/go/build#hdr-Build_Constraints  go的构建约束，改了build会忽略
 //go:build ignore
 
 package runtime

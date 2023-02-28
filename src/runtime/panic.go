@@ -1031,6 +1031,38 @@ func getargp() uintptr {
 //
 // TODO(rsc): Once we commit to CopyStackAlways,
 // this doesn't need to be nosplit.
+/**
+//The //go:nosplit directive specifies that the next function declared in the
+//file must not include a stack overflow check. This is most commonly used by
+//low-level runtime sources invoked at times when it is unsafe for the calling
+//goroutine to be preempted.
+//看起来意思是这个函数不能被打断，
+
+I am interested in knowing
+> 1. Can it indeed be used in arbitrary packages?(任意包，sdk？)
+
+Yes.
+
+> 2. Does it indeed prevent the emission/addition of pre-emption instructions
+> in the function it annotates?
+
+Well, yes and no. What it does is disable the stack overflow check at
+function entry. At present the stack overflow check is also used as
+a goroutine-preemption check. So disabling the stack overflow check
+disables the goroutine-preemption check at function entry. And in Go
+1.11 that is the only preemption check, so in Go 1.11 go:nosplit does
+indeed disable preemption for a function. But there are no promises
+that there will never be any other sort of preemption check. In fact
+we definitely do want to add other preemption checks that occur at
+points other than function entry (issues #10958, #24543). And if
+there is another preemption check, there are no promises that
+go:nosplit will disable that check.
+
+> 3. Can it be used with gccgo?
+
+Yes.
+*/
+//```
 //
 //go:nosplit
 func gorecover(argp uintptr) any {
