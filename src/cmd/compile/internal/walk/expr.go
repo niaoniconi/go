@@ -830,9 +830,10 @@ func walkLogical(n *ir.LogicalExpr, init *ir.Nodes) ir.Node {
 // walkSend walks an OSEND node.
 func walkSend(n *ir.SendStmt, init *ir.Nodes) ir.Node {
 	n1 := n.Value
-	n1 = typecheck.AssignConv(n1, n.Chan.Type().Elem(), "chan send")
+	n1 = typecheck.AssignConv(n1, n.Chan.Type().Elem(), "chan send")      //
 	n1 = walkExpr(n1, init)
 	n1 = typecheck.NodAddr(n1)
+	//创建一个操作为 OCALL 的节点，
 	return mkcall1(chanfn("chansend1", 2, n.Chan.Type()), nil, init, n.Chan, n1)
 }
 
