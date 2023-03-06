@@ -57,7 +57,7 @@ type (
 	valueRewriter func(*Value) bool
 )
 
-type Types struct {               //存储了几乎所有类型的指针
+type Types struct { //存储了几乎所有类型的指针
 	Bool       *types.Type
 	Int8       *types.Type
 	Int16      *types.Type
@@ -176,11 +176,12 @@ type Frontend interface {
 }
 
 // NewConfig returns a new configuration object for the given architecture.
+//会根据传入的 CPU 架构设置用于生成中间代码和机器码的函数，当前编译器使用的指针、寄存器大小、可用寄存器列表、掩码等编译选项
 func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat bool) *Config {
 	c := &Config{arch: arch, Types: types}
 	c.useAvg = true
 	c.useHmul = true
-	switch arch {
+	switch arch { //这里是根据架构 switch case 函数部分
 	case "amd64":
 		c.PtrSize = 8
 		c.RegSize = 8

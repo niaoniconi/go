@@ -68,7 +68,7 @@ func InitEnv() {
 }
 
 func InitConfig() {
-	types_ := ssa.NewTypes()   //调用 src/cmd/compile/internal/ssa/config.go.NewTypes 初始化 cmd/compile/internal/ssa.Types
+	types_ := ssa.NewTypes() //调用 src/cmd/compile/internal/ssa/config.go.NewTypes 初始化 cmd/compile/internal/ssa.Types
 
 	if Arch.SoftFloat {
 		softfloatInit()
@@ -86,20 +86,27 @@ func InitConfig() {
 	_ = types.NewPtr(types.Types[types.TINT16])                             // *int16
 	_ = types.NewPtr(types.Types[types.TINT64])                             // *int64
 	_ = types.NewPtr(types.ErrorType)                                       // *error
-	types.NewPtrCacheEnabled = false										//所有类型的指针都缓存之后，设为不能再存
-	ssaConfig = ssa.NewConfig(base.Ctxt.Arch.Name, *types_, base.Ctxt, base.Flag.N == 0, Arch.SoftFloat)  //传入目标机器的 CPU 架构、上述代码初始化的ssa.Types 结构体、上下文信息和 Debug 配置：
+	types.NewPtrCacheEnabled = false                                        //所有类型的指针都缓存之后，设为不能再存
+	//传入目标机器的 CPU 架构、上述代码初始化的ssa.Types 结构体、上下文信息和 Debug 配置：
+	//NewConfig 会根据传入的 CPU 架构设置用于生成中间代码和机器码的函数，当前编译器使用的指针、寄存器大小、可用寄存器列表、掩码等编译选项：
+	ssaConfig = ssa.NewConfig(base.Ctxt.Arch.Name, *types_, base.Ctxt, base.Flag.N == 0, Arch.SoftFloat)
 	ssaConfig.Race = base.Flag.Race
 	ssaCaches = make([]ssa.Cache, base.Flag.LowerC)
 
+	//会初始化一些编译器可能用到的 Go 语言运行时的函数。
+	//LookupRuntimeFunc 函数会在对应的运行时包结构体 cmd/compile/internal/types.Pkg 中创建一个新的符号
+	// cmd/compile/internal/obj.LSym，表示该方法已经注册到运行时包中。后面的中间代码生成阶段中直接使用这些方法，
+	//例如：下面代码片段中的 runtime.deferproc 和 runtime.deferreturn 就是 Go 语言用于实现 defer 关键字的运行时函数，
+	//你能从后面的章节中了解更多内容。
 	// Set up some runtime functions we'll need to call.
-	ir.Syms.AssertE2I = typecheck.LookupRuntimeFunc("assertE2I")
+	ir.Syms.AssertE2I = typecheck.LookupRuntimeFunc("assertE2I") //assert 相关的配置
 	ir.Syms.AssertE2I2 = typecheck.LookupRuntimeFunc("assertE2I2")
 	ir.Syms.AssertI2I = typecheck.LookupRuntimeFunc("assertI2I")
 	ir.Syms.AssertI2I2 = typecheck.LookupRuntimeFunc("assertI2I2")
 	ir.Syms.CgoCheckMemmove = typecheck.LookupRuntimeFunc("cgoCheckMemmove")
 	ir.Syms.CgoCheckPtrWrite = typecheck.LookupRuntimeFunc("cgoCheckPtrWrite")
 	ir.Syms.CheckPtrAlignment = typecheck.LookupRuntimeFunc("checkptrAlignment")
-	ir.Syms.Deferproc = typecheck.LookupRuntimeFunc("deferproc")
+	ir.Syms.Deferproc = typecheck.LookupRuntimeFunc("deferproc") //defer 相关的配置
 	ir.Syms.DeferprocStack = typecheck.LookupRuntimeFunc("deferprocStack")
 	ir.Syms.Deferreturn = typecheck.LookupRuntimeFunc("deferreturn")
 	ir.Syms.Duffcopy = typecheck.LookupRuntimeFunc("duffcopy")

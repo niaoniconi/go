@@ -243,7 +243,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// Eliminate some obviously dead code.
 	// Must happen after typechecking.
 	for _, n := range typecheck.Target.Decls {
-		if n.Op() == ir.ODCLFUNC {                         // func f() or func (r) f()
+		if n.Op() == ir.ODCLFUNC { // func f() or func (r) f()
 			deadcode.Func(n.(*ir.Func))
 		}
 	}
@@ -291,7 +291,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	symABIs.GenABIWrappers()
 
 	// Escape analysis.  逃逸分析
-	// Required for moving heap allocations onto stack,     把怼堆分配移到栈所需要的
+	// Required for moving heap allocations onto stack,     把堆分配移到栈所需要的
 	// which in turn is required by the closure implementation,
 	// which stores the addresses of stack variables into the closure.
 	// If the closure does not escape, it needs to be on the stack      闭包没有逃逸的话，必须在栈上
@@ -315,13 +315,13 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// Don't use range--walk can add functions to Target.Decls.
 	base.Timer.Start("be", "compilefuncs")
 	fcount := int64(0)
-	for i := 0; i < len(typecheck.Target.Decls); i++ {                       //遍历顶部节点
+	for i := 0; i < len(typecheck.Target.Decls); i++ { //遍历顶部节点
 		if fn, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
 			// Don't try compiling dead hidden closure.
-			if fn.IsDeadcodeClosure() {                     //没用的闭包，不翻译
+			if fn.IsDeadcodeClosure() { //没用的闭包，不翻译
 				continue
 			}
-			enqueueFunc(fn)
+			enqueueFunc(fn) //在这边执行了walk？？
 			fcount++
 		}
 	}
