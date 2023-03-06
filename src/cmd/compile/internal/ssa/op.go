@@ -304,6 +304,9 @@ func (a *AuxCall) String() string {
 }
 
 // StaticAuxCall returns an AuxCall for a static call.
+/**
+编译器中都会被实现成静态的函数调用
+ */
 func StaticAuxCall(sym *obj.LSym, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
 	if paramResultInfo == nil {
 		panic(fmt.Errorf("Nil paramResultInfo, sym=%v", sym))

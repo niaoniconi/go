@@ -533,6 +533,9 @@ func newType(et Kind) *Type {
 }
 
 // NewArray returns a new fixed-length array Type.
+/**
+生成数组类型，分别是元素类型 Elem 和数组的大小 Bound，这两个字段共同构成了数组类型，而当前数组是否应该在堆栈中初始化也在编译期就确定了。
+ */
 func NewArray(elem *Type, bound int64) *Type {
 	if bound < 0 {
 		base.Fatalf("NewArray: invalid bound %v", bound)

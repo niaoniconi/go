@@ -188,6 +188,7 @@ const (
 )
 
 // fixedlit handles struct, array, and slice literals.
+//当数组的元素小于或者等于四个时,该函数会负责在函数编译之前将 [3]{1, 2, 3} 转换成更加原始的语句：
 // TODO: expand documentation.
 func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
 	isBlank := var_ == ir.BlankNode
@@ -234,10 +235,11 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 		switch value.Op() {
 		case ir.OSLICELIT:
 			value := value.(*ir.CompLitExpr)
+			//kind == initKindStatic && ctxt == inNonInitFunction    长度小于4的数组，数组是inNonInitFunction
 			if (kind == initKindStatic && ctxt == inNonInitFunction) || (kind == initKindDynamic && ctxt == inInitFunction) {
 				var sinit ir.Nodes
 				slicelit(ctxt, value, a, &sinit)
-				if kind == initKindStatic {
+				if kind == initKindStatic {      //静态区
 					// When doing static initialization, init statements may contain dynamic
 					// expression, which will be initialized later, causing liveness analysis
 					// confuses about variables lifetime. So making sure those expressions
@@ -563,15 +565,16 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 		if !t.IsStruct() && !t.IsArray() {
 			base.Fatalf("anylit: not struct/array")
 		}
-
+		//看数组的长度是否大于4
 		if isSimpleName(var_) && len(n.List) > 4 {
-			// lay out static data
+			// lay out static data  获取一个唯一的 staticname
 			vstat := readonlystaticname(t)
 
 			ctxt := inInitFunction
 			if n.Op() == ir.OARRAYLIT {
 				ctxt = inNonInitFunction
 			}
+			//在静态存储区初始化数组中的元素并将临时变量赋值给数组,initKindStatic这个标志和4以内的不一样
 			fixedlit(ctxt, initKindStatic, n, vstat, init)
 
 			// copy static to var

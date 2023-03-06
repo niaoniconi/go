@@ -27,6 +27,11 @@ import (
 //   - the order of f.Blocks is the order to emit the Blocks
 //   - the order of b.Values is the order to emit the Values in each Block
 //   - f has a non-nil regAlloc field
+/**
+ GOSSAFUNC=main go build main.go 没事可以生成ssa玩玩
+通过多轮迭代更新 SSA 中间代码。编译器优化中间代码
+函数删除了很多打印日志和性能分析的代码，SSA 需要经历的多轮处理也都保存在了 passes 变量中，这个变量中存储了每一轮处理的名字、使用的函数以及表示是否必要的 required 字段：
+ */
 func Compile(f *Func) {
 	// TODO: debugging - set flags to control verbosity of compiler,
 	// which phases to dump IR before/after, etc.

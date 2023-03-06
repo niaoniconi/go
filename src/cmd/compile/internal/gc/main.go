@@ -211,6 +211,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	dwarfgen.RecordPackageName()
 
 	//配置初始化，天哪1.20和1.14的编译差太多了
+	//加载一些runtime函数，比如defer
 	// Prepare for backend processing. This must happen before pkginit,
 	// because it generates itabs for initializing global variables.
 	ssagen.InitConfig()
@@ -327,6 +328,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	}
 	base.Timer.AddEvent(fcount, "funcs")
 
+	//编译开始
 	compileFunctions()
 
 	if base.Flag.CompilingRuntime {
