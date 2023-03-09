@@ -64,6 +64,7 @@ func walkRecv(n *ir.UnaryExpr) ir.Node {
 	init := ir.TakeInit(n)
 
 	n.X = walkExpr(n.X, &init)
+	//
 	call := walkExpr(mkcall1(chanfn("chanrecv1", 2, n.X.Type()), nil, &init, n.X, typecheck.NodNil()), &init)
 	return ir.InitExpr(init, call)
 }
@@ -144,7 +145,7 @@ func chanfn(name string, n int, t *types.Type) ir.Node {
 	if !t.IsChan() {
 		base.Fatalf("chanfn %v", t)
 	}
-	fn := typecheck.LookupRuntime(name)
+	fn := typecheck.LookupRuntime(name)   //在runtime寻找名字对应的func？
 	switch n {
 	default:
 		base.Fatalf("chanfn %d", n)

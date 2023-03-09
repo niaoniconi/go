@@ -326,6 +326,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	}
 	base.Timer.AddEvent(fcount, "funcs")
 
+	//AST在这变成SSA
 	compileFunctions()
 
 	if base.Flag.CompilingRuntime {

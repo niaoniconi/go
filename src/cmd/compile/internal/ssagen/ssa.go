@@ -334,6 +334,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	var astBuf *bytes.Buffer
 	if printssa {
 		astBuf = &bytes.Buffer{}
+		//enter,body,exit 一个函数的三个部分
 		ir.FDumpList(astBuf, "buildssa-enter", fn.Enter)
 		ir.FDumpList(astBuf, "buildssa-body", fn.Body)
 		ir.FDumpList(astBuf, "buildssa-exit", fn.Exit)
@@ -362,7 +363,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	s.f = ssa.NewFunc(&fe)
 	s.config = ssaConfig
 	s.f.Type = fn.Type()
-	s.f.Config = ssaConfig
+	s.f.Config = ssaConfig		//配置，机器配置，前面加载的
 	s.f.Cache = &ssaCaches[worker]
 	s.f.Cache.Reset()
 	s.f.Name = name

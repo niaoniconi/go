@@ -183,6 +183,7 @@ const maxStackSize = 1 << 30
 // uses it to generate a plist,
 // and flushes that plist to machine code.
 // worker indicates which of the backend workers is doing the processing.
+//cmd/compile/internal/gc.buildssa  原1.14的这部分，生成ssa
 func Compile(fn *ir.Func, worker int) {
 	f := buildssa(fn, worker)
 	// Note: check arg size to fix issue 25507.
