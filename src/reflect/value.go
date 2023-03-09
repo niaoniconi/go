@@ -2750,6 +2750,7 @@ type StringHeader struct {
 }
 
 // SliceHeader is the runtime representation of a slice.
+//运行时可以用指代切片
 // It cannot be used safely or portably and its representation may
 // change in a later release.
 // Moreover, the Data field is not sufficient to guarantee the data

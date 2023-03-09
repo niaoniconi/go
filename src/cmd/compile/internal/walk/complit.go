@@ -188,6 +188,7 @@ const (
 )
 
 // fixedlit handles struct, array, and slice literals.
+//当数组的元素小于或者等于四个时,该函数会负责在函数编译之前将 [3]{1, 2, 3} 转换成更加原始的语句：
 // TODO: expand documentation.
 func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
 	isBlank := var_ == ir.BlankNode
@@ -234,10 +235,11 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 		switch value.Op() {
 		case ir.OSLICELIT:
 			value := value.(*ir.CompLitExpr)
+			//kind == initKindStatic && ctxt == inNonInitFunction    长度小于4的数组，数组是inNonInitFunction
 			if (kind == initKindStatic && ctxt == inNonInitFunction) || (kind == initKindDynamic && ctxt == inInitFunction) {
 				var sinit ir.Nodes
 				slicelit(ctxt, value, a, &sinit)
-				if kind == initKindStatic {
+				if kind == initKindStatic {      //静态区
 					// When doing static initialization, init statements may contain dynamic
 					// expression, which will be initialized later, causing liveness analysis
 					// confuses about variables lifetime. So making sure those expressions
@@ -284,7 +286,8 @@ func isSmallSliceLit(n *ir.CompLitExpr) bool {
 
 	return n.Type().Elem().Size() == 0 || n.Len <= ir.MaxSmallArraySize/n.Type().Elem().Size()
 }
-
+//字面量生命切片时，调用该函数，是不是在遍历和替换的时候生成的
+//对的，数组的创建，好像也是这个时候，中间代码生成阶段
 func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
 	// make an array type corresponding the number of elements we have
 	t := types.NewArray(n.Type().Elem(), n.Len)
@@ -306,20 +309,27 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 		staticdata.InitSlice(name, offset, vstat.Linksym(), t.NumElem())
 		return
 	}
-
+	//	这不就是具体操作
+	/**
+	1. 根据切片中的元素数量对底层数组的大小进行推断并创建一个数组；
+	2. 将这些字面量元素存储到初始化的数组中；
+	3. 创建一个同样指向 [3]int 类型的数组指针；
+	4. 将静态存储区的数组 vstat 赋值给 vauto 指针所在的地址；
+	5. 通过 [:] 操作获取一个底层使用 vauto 的切片；
+	 */
 	// recipe for var = []t{...}
 	// 1. make a static array
-	//	var vstat [...]t
+	//	var vstat [...]t   创建一个数组；
 	// 2. assign (data statements) the constant part
-	//	vstat = constpart{}
+	//	vstat = constpart{}  将这些字面量元素存储到初始化的数组中；
 	// 3. make an auto pointer to array and allocate heap to it
-	//	var vauto *[...]t = new([...]t)
+	//	var vauto *[...]t = new([...]t)    创建一个同样指向 [3]int 类型的数组指针；这个指针有堆的内存
 	// 4. copy the static array to the auto array
-	//	*vauto = vstat
+	//	*vauto = vstat  将静态存储区的数组 vstat 赋值给 vauto 指针所在的地址；
 	// 5. for each dynamic part assign to the array
-	//	vauto[i] = dynamic part
+	//	vauto[i] = dynamic part  这是如果切片里面存的是动态类型，比如说结构体吗？
 	// 6. assign slice of allocated heap to var
-	//	var = vauto[:]
+	//	var = vauto[:]   操作获取一个底层使用 vauto 的切片；
 	//
 	// an optimization is done if there is no constant part
 	//	3. var vauto *[...]t = new([...]t)
@@ -563,15 +573,16 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 		if !t.IsStruct() && !t.IsArray() {
 			base.Fatalf("anylit: not struct/array")
 		}
-
+		//看数组的长度是否大于4
 		if isSimpleName(var_) && len(n.List) > 4 {
-			// lay out static data
+			// lay out static data  获取一个唯一的 staticname
 			vstat := readonlystaticname(t)
 
 			ctxt := inInitFunction
 			if n.Op() == ir.OARRAYLIT {
 				ctxt = inNonInitFunction
 			}
+			//在静态存储区初始化数组中的元素并将临时变量赋值给数组,initKindStatic这个标志和4以内的不一样
 			fixedlit(ctxt, initKindStatic, n, vstat, init)
 
 			// copy static to var

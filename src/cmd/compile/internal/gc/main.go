@@ -211,6 +211,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	dwarfgen.RecordPackageName()
 
 	//配置初始化，天哪1.20和1.14的编译差太多了
+	//加载一些runtime函数，比如defer
 	// Prepare for backend processing. This must happen before pkginit,
 	// because it generates itabs for initializing global variables.
 	ssagen.InitConfig()
@@ -237,6 +238,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	if base.Flag.Cfg.CoverageInfo != nil {
 		coverage.FixupInit(cnames)
 	}
+
 
 	//typecheck.Target.Decls： Top-level declarations.
 	// Eliminate some obviously dead code.
@@ -327,6 +329,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	base.Timer.AddEvent(fcount, "funcs")
 
 	//AST在这变成SSA
+	//编译开始
 	compileFunctions()
 
 	if base.Flag.CompilingRuntime {

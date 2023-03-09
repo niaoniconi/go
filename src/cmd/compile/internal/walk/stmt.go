@@ -10,7 +10,7 @@ import (
 )
 
 // The result of walkStmt MUST be assigned back to n, e.g.
-//在编程语言中，"stmt"可能用来指一条语句
+//
 //	n.Left = walkStmt(n.Left)
 func walkStmt(n ir.Node) ir.Node {
 	if n == nil {

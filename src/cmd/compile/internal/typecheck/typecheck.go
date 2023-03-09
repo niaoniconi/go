@@ -565,6 +565,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.AddrExpr)
 		return tcAddr(n)
 
+		//数组初始化，上限推导也在这里
 	case ir.OCOMPLIT:
 		return tcCompLit(n.(*ir.CompLitExpr))
 
@@ -575,7 +576,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.ODOTTYPE:
 		n := n.(*ir.TypeAssertExpr)
 		return tcDotType(n)
-
+	//数组越界检查
 	case ir.OINDEX:
 		n := n.(*ir.IndexExpr)
 		return tcIndex(n)
@@ -1481,6 +1482,7 @@ func fielddup(name string, hash map[string]bool) {
 }
 
 // typecheckarraylit type-checks a sequence of slice/array literal elements.
+//顺带计算数组或者切片的长度
 func typecheckarraylit(elemType *types.Type, bound int64, elts []ir.Node, ctx string) int64 {
 	// If there are key/value pairs, create a map to keep seen
 	// keys so we can check for duplicate indices.

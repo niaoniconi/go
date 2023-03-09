@@ -20,7 +20,7 @@ import (
 )
 
 // The result of walkExpr MUST be assigned back to n, e.g.
-// 同一个包里的函数可以互相调用
+//
 //	n.Left = walkExpr(n.Left, init)
 func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
 	if n == nil {
@@ -29,7 +29,7 @@ func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
 
 	if n, ok := n.(ir.InitNode); ok && init == n.PtrInit() {
 		// not okay to use n->ninit when walking n,
-		// because we might replace n with some other node，不能是init节点
+		// because we might replace n with some other node
 		// and would lose the init list.
 		base.Fatalf("walkExpr init == &n->ninit")
 	}
@@ -46,7 +46,6 @@ func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
 	}
 
 	if n.Typecheck() != 1 {
-		//是否经过类型检查
 		base.Fatalf("missed typecheck: %+v", n)
 	}
 
@@ -331,7 +330,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 	case ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT, ir.OSTRUCTLIT, ir.OPTRLIT:
 		return walkCompLit(n, init)
 
-	case ir.OSEND: //根据节点的类型不同进入不同的分支，调用具体的walk函数，这是channel的发送
+	case ir.OSEND:
 		n := n.(*ir.SendStmt)
 		return walkSend(n, init)
 

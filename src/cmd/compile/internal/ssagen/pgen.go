@@ -185,6 +185,7 @@ const maxStackSize = 1 << 30
 // worker indicates which of the backend workers is doing the processing.
 //cmd/compile/internal/gc.buildssa  原1.14的这部分，生成ssa
 func Compile(fn *ir.Func, worker int) {
+	//中间码ssa生成
 	f := buildssa(fn, worker)
 	// Note: check arg size to fix issue 25507.
 	if f.Frontend().(*ssafn).stksize >= maxStackSize || f.OwnAux.ArgWidth() >= maxStackSize {

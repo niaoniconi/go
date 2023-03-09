@@ -631,7 +631,7 @@ func tcMake(n *ir.CallExpr) ir.Node {
 		n.SetType(nil)
 		return n
 
-	case types.TSLICE:
+	case types.TSLICE:   //通过make创建切片
 		if i >= len(args) {
 			base.Errorf("missing len argument to make(%v)", t)
 			n.SetType(nil)
@@ -662,6 +662,13 @@ func tcMake(n *ir.CallExpr) ir.Node {
 			return n
 		}
 		nn = ir.NewMakeExpr(n.Pos(), ir.OMAKESLICE, l, r)           //校验都合理的话，
+		/**
+		上述函数不仅会检查 len 是否传入，还会保证传入的容量 cap 一定大于或者等于 len。
+		除了校验参数之外，当前函数会将 OMAKE 节点转换成 OMAKESLICE，
+		中间代码生成的 cmd/compile/internal/gc.walkexpr 函数会依据下面两个条件转换 OMAKESLICE 类型的节点：
+		切片的大小和容量是否足够小；
+		切片是否发生了逃逸，最终在堆上初始化
+		*/
 
 	case types.TMAP:
 		if i < len(args) {

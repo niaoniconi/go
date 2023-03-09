@@ -361,7 +361,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	s.curfn = fn
 
 	s.f = ssa.NewFunc(&fe)
-	s.config = ssaConfig
+	s.config = ssaConfig    //之前初始化的配置结构体
 	s.f.Type = fn.Type()
 	s.f.Config = ssaConfig		//配置，机器配置，前面加载的
 	s.f.Cache = &ssaCaches[worker]
@@ -556,6 +556,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 		}
 	}
 
+	//第一阶段使用 stmtList 以及相关函数将抽象语法树转换成中间代码，
 	// Convert the AST-based IR to the SSA-based IR
 	s.stmtList(fn.Enter)
 	s.zeroResults()
@@ -1427,6 +1428,9 @@ func (s *state) moveWhichMayOverlap(t *types.Type, dst, src *ssa.Value, mayOverl
 }
 
 // stmtList converts the statement list n to SSA and adds it to s.
+/**
+会为传入数组中的每个节点调用stmt函数
+ */
 func (s *state) stmtList(l ir.Nodes) {
 	for _, n := range l {
 		s.stmt(n)
@@ -1434,6 +1438,9 @@ func (s *state) stmtList(l ir.Nodes) {
 }
 
 // stmt converts the statement n to SSA and adds it to s.
+/**
+编译器会根据节点操作符的不同将当前 AST 节点转换成对应的中间代码：
+ */
 func (s *state) stmt(n ir.Node) {
 	s.pushLine(n.Pos())
 	defer s.popLine()
@@ -1455,6 +1462,7 @@ func (s *state) stmt(n ir.Node) {
 	case ir.ODCLCONST, ir.ODCLTYPE, ir.OFALL:
 
 	// Expression statements
+	//X(Args) (function call f(args))  函数调用
 	case ir.OCALLFUNC:
 		n := n.(*ir.CallExpr)
 		if ir.IsIntrinsicCall(n) {
@@ -1462,7 +1470,7 @@ func (s *state) stmt(n ir.Node) {
 			return
 		}
 		fallthrough
-
+	//X(Args) (interface method call x.Method(args))   接口方法调用
 	case ir.OCALLINTER:
 		n := n.(*ir.CallExpr)
 		s.callResult(n, callNormal)
@@ -1478,6 +1486,7 @@ func (s *state) stmt(n ir.Node) {
 				// go through SSA.
 			}
 		}
+	//defer call
 	case ir.ODEFER:
 		n := n.(*ir.GoDeferStmt)
 		if base.Debug.Defer > 0 {
@@ -5111,7 +5120,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			closure = iclosure
 		}
 	}
-
+	//Application Binary Interface 应用程序二进制接口
 	params := callABI.ABIAnalyze(n.X.Type(), false /* Do not set (register) nNames from caller side -- can cause races. */)
 	types.CalcSize(fn.Type())
 	stksize := params.ArgWidth() // includes receiver, args, and results
@@ -5207,9 +5216,15 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		// call target
 		switch {
 		case k == callDefer:
+			/**
+			首先，从 AST 到 SSA 的转化过程中，编译器会生成将函数调用的参数放到栈上的中间代码，处理参数之后才会生成一条运行函数的命令 ssa.StaticAuxCall：
+			当使用 defer 关键字时，插入 runtime.deferproc 函数
+			ir.Syms.Deferproc 在配置初始化的时候加载了runtime的deferproc函数
+			 */
 			aux := ssa.StaticAuxCall(ir.Syms.Deferproc, s.f.ABIDefault.ABIAnalyzeTypes(nil, ACArgs, ACResults)) // TODO paramResultInfo for DeferProc
 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 		case k == callGo:
+			//ir.Syms.Newproc go关键字的符号  看起来像newprocess的缩写
 			aux := ssa.StaticAuxCall(ir.Syms.Newproc, s.f.ABIDefault.ABIAnalyzeTypes(nil, ACArgs, ACResults))
 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux) // TODO paramResultInfo for NewProc
 		case closure != nil:
@@ -5226,6 +5241,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			aux := ssa.InterfaceAuxCall(params)
 			call = s.newValue1A(ssa.OpInterLECall, aux.LateExpansionResultType(), aux, codeptr)
 		case callee != nil:
+			//在遇到其他情况时会插入表示普通函数对应的符号；?
 			aux := ssa.StaticAuxCall(callTargetLSym(callee), params)
 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 			if k == callTail {
