@@ -275,7 +275,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		// order should make sure we only see OAS(node, OAPPEND), which we handle above.
 		base.Fatalf("append outside assignment")
 		panic("unreachable")
-
+	//copy操作在中间代码生成
 	case ir.OCOPY:
 		return walkCopy(n.(*ir.BinaryExpr), init, base.Flag.Cfg.Instrumenting && !base.Flag.CompilingRuntime)
 

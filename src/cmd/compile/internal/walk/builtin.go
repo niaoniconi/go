@@ -150,6 +150,7 @@ func walkClose(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
 	return mkcall1(fn, nil, init, n.X)
 }
 
+//低优先级的非运行时调用，b是string也一样起作用
 // Lower copy(a, b) to a memmove call or a runtime call.
 //
 //	init {
@@ -161,7 +162,7 @@ func walkClose(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
 //
 // Also works if b is a string.
 func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
-	if n.X.Type().Elem().HasPointers() {
+	if n.X.Type().Elem().HasPointers() {     //元素是有指针的
 		ir.CurFunc.SetWBPos(n.Pos())
 		fn := writebarrierfn("typedslicecopy", n.X.Type().Elem(), n.Y.Type().Elem())
 		n.X = cheapExpr(n.X, init)
@@ -171,10 +172,10 @@ func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
 		return mkcall1(fn, n.Type(), init, reflectdata.CopyElemRType(base.Pos, n), ptrL, lenL, ptrR, lenR)
 	}
 
-	if runtimecall {
+	if runtimecall {                    //运行时调用
 		// rely on runtime to instrument:
 		//  copy(n.Left, n.Right)
-		// n.Right can be a slice or string.
+		// n.Right can be a slice or string.  slice或者string
 
 		n.X = cheapExpr(n.X, init)
 		ptrL, lenL := backingArrayPtrLen(n.X)
@@ -186,6 +187,8 @@ func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
 
 		return mkcall1(fn, n.Type(), init, ptrL, lenL, ptrR, lenR, ir.NewInt(n.X.Type().Elem().Size()))
 	}
+
+	//非运行时slice、string
 
 	n.X = walkExpr(n.X, init)
 	n.Y = walkExpr(n.Y, init)

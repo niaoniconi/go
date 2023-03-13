@@ -124,19 +124,21 @@ func mulUintptr(a, b uintptr) (uintptr, bool) {
 }
 
 // growslice allocates new backing store for a slice.
-//
+//如果期望容量大于当前容量的两倍就会使用期望容量；
+//如果当前切片的长度小于 256就会将容量翻倍；
+//如果当前切片的长度大于 256就会每次增加 25% 的容量，直到新容量大于期望容量；
 // arguments:
 //
-//	oldPtr = pointer to the slice's backing array
-//	newLen = new length (= oldLen + num)
-//	oldCap = original slice's capacity.
-//	   num = number of elements being added
-//	    et = element type
+//	oldPtr = pointer to the slice's backing array  原指针
+//	newLen = new length (= oldLen + num)   期望长度
+//	oldCap = original slice's capacity. 原容量
+//	   num = number of elements being added   期望添加的数量
+//	    et = element type    函数类型
 //
 // return values:
 //
 //	newPtr = pointer to the new backing store
-//	newLen = same value as the argument
+//	newLen = same value as the argument   和入参一样
 //	newCap = capacity of the new backing store
 //
 // Requires that uint(newLen) > uint(oldCap).
@@ -180,7 +182,7 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice 
 	newcap := oldCap
 	doublecap := newcap + newcap
 	if newLen > doublecap {
-		newcap = newLen
+		newcap = newLen   //如果期望容量大于当前容量的两倍就会使用期望容量；
 	} else {
 		const threshold = 256
 		if oldCap < threshold {
@@ -204,6 +206,7 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice 
 
 	var overflow bool
 	var lenmem, newlenmem, capmem uintptr
+	//上述操作仅会确定切片的大致容量，下面还需要根据切片中的元素大小对齐内存，当数组中元素所占的字节大小为 1、8 或者 2 的倍数时，运行时会使用如下所示的代码对齐内存
 	// Specialize for common values of et.size.
 	// For 1 we don't need any division/multiplication.
 	// For goarch.PtrSize, compiler will optimize division/multiplication into a shift by a constant.
@@ -218,6 +221,7 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice 
 	case et.size == goarch.PtrSize:
 		lenmem = uintptr(oldLen) * goarch.PtrSize
 		newlenmem = uintptr(newLen) * goarch.PtrSize
+		//调用runtime.roundupsize 函数将待申请的内存向上取整
 		capmem = roundupsize(uintptr(newcap) * goarch.PtrSize)
 		overflow = uintptr(newcap) > maxAlloc/goarch.PtrSize
 		newcap = int(capmem / goarch.PtrSize)
