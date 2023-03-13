@@ -3387,13 +3387,17 @@ func (s *state) resultAddrOfCall(c *ssa.Value, which int64, t *types.Type) *ssa.
 	return addr
 }
 
+//切片的append操作在ssa时期进行转换
+//如果返回覆盖原变量，会先生成原切片的新结构体。（同样的地址，记住切片只是引用）
+//然后先解构切片结构体获取它的数组指针、大小和容量，如果在追加元素后切片的大小大于容量，那么就会调用 runtime.growslice 对切片进行扩容并将新的元素依次加入切片。怎么感觉无论是否大于都调用了growslice呢？
+//如果返回覆盖原变量，直接更新切片长度，返回nil；如果不覆盖，返回新切片的sliceheader
 // append converts an OAPPEND node to SSA.
-// If inplace is false, it converts the OAPPEND expression n to an ssa.Value,
-// adds it to s, and returns the Value.
+// If inplace is false, it converts the OAPPEND expression n to an ssa.Value,  inplace，append是不是覆盖原本的slice
+// adds it to s, and returns the Value.   如果不是返回新的slice值
 // If inplace is true, it writes the result of the OAPPEND expression n
-// back to the slice being appended to, and returns nil.
+// back to the slice being appended to, and returns nil.  如果是，在原slice上append，返回nil
 // inplace MUST be set to false if the slice can be SSA'd.
-// Note: this code only handles fixed-count appends. Dotdotdot appends
+// Note: this code only handles fixed-count appends. Dotdotdot appends（添加切片在前面中间代码生成就被重写成添加元素了，append切片也算一个语法糖把）
 // have already been rewritten at this point (by walk).
 func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	// If inplace is false, process as expression "append(s, e1, e2, e3)":
@@ -3432,38 +3436,39 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	pt := types.NewPtr(et)
 
 	// Evaluate slice
-	sn := n.Args[0] // the slice node is the first in the list
+	sn := n.Args[0] // the slice node is the first in the list    slice 节点，第一个参数
 	var slice, addr *ssa.Value
 	if inplace {
-		addr = s.addr(sn)
+		addr = s.addr(sn)     //加载之前的切片
 		slice = s.load(n.Type(), addr)
 	} else {
-		slice = s.expr(sn)
+		slice = s.expr(sn)   //新建一个sliceheader？，sliceheader的expr操作就是 newValue3 注释adds a new value with three arguments to the current block.
 	}
 
 	// Allocate new blocks
 	grow := s.f.NewBlock(ssa.BlockPlain)
 	assign := s.f.NewBlock(ssa.BlockPlain)
 
-	// Decomposse input slice.
+	// Decomposse input slice.   解析输入参数
 	p := s.newValue1(ssa.OpSlicePtr, pt, slice)
 	l := s.newValue1(ssa.OpSliceLen, types.Types[types.TINT], slice)
 	c := s.newValue1(ssa.OpSliceCap, types.Types[types.TINT], slice)
 
 	// Add number of new elements to length.
-	nargs := s.constInt(types.Types[types.TINT], int64(len(n.Args)-1))
-	l = s.newValue2(s.ssaOp(ir.OADD, types.Types[types.TINT]), types.Types[types.TINT], l, nargs)
+	nargs := s.constInt(types.Types[types.TINT], int64(len(n.Args)-1))    //看需要添加的参数的长度
+	l = s.newValue2(s.ssaOp(ir.OADD, types.Types[types.TINT]), types.Types[types.TINT], l, nargs)   //更新长度
 
-	// Decide if we need to grow
+	// Decide if we need to grow  判断增加之后是否扩容
 	cmp := s.newValue2(s.ssaOp(ir.OLT, types.Types[types.TUINT]), types.Types[types.TBOOL], c, l)
 
-	// Record values of ptr/len/cap before branch.
+	// Record values of ptr/len/cap before branch.  记录
 	s.vars[ptrVar] = p
 	s.vars[lenVar] = l
-	if !inplace {
+	if !inplace {            //不是覆盖原slice，记录一下之前的cap
 		s.vars[capVar] = c
 	}
 
+	//这个b是干嘛的，不能理解
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.Likely = ssa.BranchUnlikely
@@ -3471,12 +3476,12 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	b.AddEdgeTo(grow)
 	b.AddEdgeTo(assign)
 
-	// Call growslice
+	// Call growslice  好像没有判断，是直接调用诶
 	s.startBlock(grow)
 	taddr := s.expr(n.X)
 	r := s.rtcall(ir.Syms.Growslice, true, []*types.Type{n.Type()}, p, l, c, nargs, taddr)
 
-	// Decompose output slice
+	// Decompose output slice  解析返回的slice
 	p = s.newValue1(ssa.OpSlicePtr, pt, r[0])
 	l = s.newValue1(ssa.OpSliceLen, types.Types[types.TINT], r[0])
 	c = s.newValue1(ssa.OpSliceCap, types.Types[types.TINT], r[0])
@@ -3550,11 +3555,11 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 		delete(s.vars, capVar)
 	}
 
-	// make result
+	// make result  inplace返回空
 	if inplace {
 		return nil
 	}
-	return s.newValue3(ssa.OpSliceMake, n.Type(), p, l, c)
+	return s.newValue3(ssa.OpSliceMake, n.Type(), p, l, c)  //否则返回新数组头
 }
 
 // condBranch evaluates the boolean expression cond and branches to yes
