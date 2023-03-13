@@ -631,19 +631,19 @@ func tcMake(n *ir.CallExpr) ir.Node {
 		n.SetType(nil)
 		return n
 
-	case types.TSLICE:   //通过make创建切片
-		if i >= len(args) {
+	case types.TSLICE:   //通过make创建切片，需要运行时参与，这里还只是校验
+		if i >= len(args) {     //make需要有长度
 			base.Errorf("missing len argument to make(%v)", t)
 			n.SetType(nil)
 			return n
 		}
 
-		l = args[i]
-		i++
+		l = args[i]  //数组长度
+		i++				//第三个参数,i=2
 		l = Expr(l)
 		var r ir.Node
 		if i < len(args) {
-			r = args[i]
+			r = args[i]			//slice的容量
 			i++
 			r = Expr(r)
 		}
@@ -656,12 +656,13 @@ func tcMake(n *ir.CallExpr) ir.Node {
 			n.SetType(nil)
 			return n
 		}
+		//校验传入的length和capacity的大小
 		if ir.IsConst(l, constant.Int) && r != nil && ir.IsConst(r, constant.Int) && constant.Compare(l.Val(), token.GTR, r.Val()) {
 			base.Errorf("len larger than cap in make(%v)", t)
 			n.SetType(nil)
 			return n
 		}
-		nn = ir.NewMakeExpr(n.Pos(), ir.OMAKESLICE, l, r)           //校验都合理的话，
+		nn = ir.NewMakeExpr(n.Pos(), ir.OMAKESLICE, l, r)           //校验都合理的话，这是替换成omakeslice吗？然后在中间代码生成的时候使用walkexpr的时候再进行具体的生成
 		/**
 		上述函数不仅会检查 len 是否传入，还会保证传入的容量 cap 一定大于或者等于 len。
 		除了校验参数之外，当前函数会将 OMAKE 节点转换成 OMAKESLICE，

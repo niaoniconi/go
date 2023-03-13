@@ -31,7 +31,7 @@ var (
 //这边全部是类型检查
 
 func AssignExpr(n ir.Node) ir.Node { return typecheck(n, ctxExpr|ctxAssign) }
-func Expr(n ir.Node) ir.Node       { return typecheck(n, ctxExpr) }
+func Expr(n ir.Node) ir.Node       { return typecheck(n, ctxExpr) }  //evaluated in value context     iota=1，1左移1位，ctxExpr=2,是一种值
 func Stmt(n ir.Node) ir.Node       { return typecheck(n, ctxStmt) }
 
 func Exprs(exprs []ir.Node) { typecheckslice(exprs, ctxExpr) }

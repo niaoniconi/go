@@ -84,12 +84,12 @@ func makeslicecopy(et *_type, tolen int, fromlen int, from unsafe.Pointer) unsaf
 
 	return to
 }
-
+//使用make关键字创建slice
 func makeslice(et *_type, len, cap int) unsafe.Pointer {
-	mem, overflow := math.MulUintptr(et.size, uintptr(cap))
-	if overflow || mem > maxAlloc || len < 0 || len > cap {
+	mem, overflow := math.MulUintptr(et.size, uintptr(cap))		//看看这个容量是不是会溢出
+	if overflow || mem > maxAlloc || len < 0 || len > cap {   //
 		// NOTE: Produce a 'len out of range' error instead of a
-		// 'cap out of range' error when someone does make([]T, bignumber).
+		// 'cap out of range' error when someone does make([]T, bignumber).有些人可能不设置容量参数
 		// 'cap out of range' is true too, but since the cap is only being
 		// supplied implicitly, saying len is clearer.
 		// See golang.org/issue/4085.
@@ -100,7 +100,7 @@ func makeslice(et *_type, len, cap int) unsafe.Pointer {
 		panicmakeslicecap()
 	}
 
-	return mallocgc(mem, et, true)
+	return mallocgc(mem, et, true)  //申请内存空间
 }
 
 func makeslice64(et *_type, len64, cap64 int64) unsafe.Pointer {

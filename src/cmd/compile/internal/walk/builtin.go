@@ -398,6 +398,7 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 	if t.Elem().NotInHeap() {
 		base.Errorf("%v can't be allocated in Go; it is incomplete (or unallocatable)", t.Elem())
 	}
+	//EscNone    // Does not escape to heap, result, or parameters.  不会发生内存逃逸
 	if n.Esc() == ir.EscNone {
 		if why := escape.HeapAllocReason(n); why != "" {
 			base.Fatalf("%v has EscNone, but %v", n, why)
@@ -422,10 +423,10 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		nif.Body.Append(niflen, mkcall("panicmakeslicecap", nil, init))
 		init.Append(typecheck.Stmt(nif))
 
-		t = types.NewArray(t.Elem(), i) // [r]T
+		t = types.NewArray(t.Elem(), i) // [r]T，新建一个array
 		var_ := typecheck.Temp(t)
-		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, nil))  // zero temp
-		r := ir.NewSliceExpr(base.Pos, ir.OSLICE, var_, nil, l, nil) // arr[:l]
+		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, nil))  // zero temp,赋零值？
+		r := ir.NewSliceExpr(base.Pos, ir.OSLICE, var_, nil, l, nil) // arr[:l]，使用下标创建一个slice
 		// The conv is necessary in case n.Type is named.
 		return walkExpr(typecheck.Expr(typecheck.Conv(r, n.Type())), init)
 	}
@@ -448,11 +449,14 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		argtype = types.Types[types.TINT]
 	}
 	fn := typecheck.LookupRuntime(fnname)
+	//调用运行时的makeslice函数
 	ptr := mkcall1(fn, types.Types[types.TUNSAFEPTR], init, reflectdata.MakeSliceElemRType(base.Pos, n), typecheck.Conv(len, argtype), typecheck.Conv(cap, argtype))
 	ptr.MarkNonNil()
 	len = typecheck.Conv(len, types.Types[types.TINT])
 	cap = typecheck.Conv(cap, types.Types[types.TINT])
+	//new 一个sliceHeader
 	sh := ir.NewSliceHeaderExpr(base.Pos, t, ptr, len, cap)
+	//再使用walkExpr进行中间代码生成
 	return walkExpr(typecheck.Expr(sh), init)
 }
 

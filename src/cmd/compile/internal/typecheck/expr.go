@@ -830,6 +830,7 @@ func tcSliceHeader(n *ir.SliceHeaderExpr) ir.Node {
 		base.Fatalf("need unsafe.Pointer for OSLICEHEADER")
 	}
 
+	//创建n的各项参数
 	n.Ptr = Expr(n.Ptr)
 	n.Len = DefaultLit(Expr(n.Len), types.Types[types.TINT])
 	n.Cap = DefaultLit(Expr(n.Cap), types.Types[types.TINT])

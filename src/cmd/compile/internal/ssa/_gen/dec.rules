@@ -52,7 +52,7 @@
     len
     (Store {typ.BytePtr} dst ptr mem))
 
-// slice ops
+// slice ops  一些slice在decompose builtin阶段的优化
 (SlicePtr (SliceMake ptr _ _ )) => ptr
 (SliceLen (SliceMake _ len _)) => len
 (SliceCap (SliceMake _ _ cap)) => cap

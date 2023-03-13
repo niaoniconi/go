@@ -3151,7 +3151,7 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		p = s.newValue1I(ssa.OpOffPtr, types.NewPtr(n.Type()), n.Offset(), p)
 		return s.load(n.Type(), p)
 
-	case ir.OINDEX:
+	case ir.OINDEX:    //利用下标取元素操作
 		n := n.(*ir.IndexExpr)
 		switch {
 		case n.X.Type().IsString():
@@ -3173,7 +3173,7 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 				ptr = s.newValue2(ssa.OpAddPtr, ptrtyp, ptr, i)
 			}
 			return s.load(types.Types[types.TUINT8], ptr)
-		case n.X.Type().IsSlice():
+		case n.X.Type().IsSlice():      //如果是slice的话，直接取地址（前面类型检查的时候会检查是否越界）
 			p := s.addr(n)
 			return s.load(n.X.Type().Elem(), p)
 		case n.X.Type().IsArray():
@@ -3201,10 +3201,11 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 			s.Fatalf("bad type for index %v", n.X.Type())
 			return nil
 		}
-
+	//在生成ssa的时候，对cap和len操作，不同的类型做关键字替换
 	case ir.OLEN, ir.OCAP:
 		n := n.(*ir.UnaryExpr)
 		switch {
+		//slice 替换成OpSliceLen和OpSliceCap
 		case n.X.Type().IsSlice():
 			op := ssa.OpSliceLen
 			if n.Op() == ir.OCAP {

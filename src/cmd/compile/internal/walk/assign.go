@@ -81,6 +81,7 @@ func walkAssign(init *ir.Nodes, n ir.Node) ir.Node {
 		r := recv.X // the channel
 		return mkcall1(chanfn("chanrecv1", 2, r.Type()), nil, init, r, n1)
 
+	//append 操作
 	case ir.OAPPEND:
 		// x = append(...)
 		call := as.Y.(*ir.CallExpr)
