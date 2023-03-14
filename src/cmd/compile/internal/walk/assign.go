@@ -148,7 +148,7 @@ func walkAssignList(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 	return ir.NewBlockStmt(src.NoXPos, ascompatee(ir.OAS, n.Lhs, n.Rhs))
 }
 
-// walkAssignMapRead walks an OAS2MAPR node.
+// walkAssignMapRead walks an OAS2MAPR node.  map两个参数
 func walkAssignMapRead(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 	init.Append(ir.TakeInit(n)...)
 
@@ -172,7 +172,7 @@ func walkAssignMapRead(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 	if w := t.Elem().Size(); w <= zeroValSize {
 		fn := mapfn(mapaccess2[fast], t, false)
 		call = mkcall1(fn, fn.Type().Results(), init, reflectdata.IndexMapRType(base.Pos, r), r.X, key)
-	} else {
+	} else {        //大size元素，调用fat
 		fn := mapfn("mapaccess2_fat", t, true)
 		z := reflectdata.ZeroAddr(w)
 		call = mkcall1(fn, fn.Type().Results(), init, reflectdata.IndexMapRType(base.Pos, r), r.X, key, z)

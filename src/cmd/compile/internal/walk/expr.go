@@ -202,7 +202,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		n := n.(*ir.AssignListStmt)
 		return walkAssignRecv(init, n)
 
-	// a,b = m[i]
+	// a,b = m[i]  两个参数的map
 	case ir.OAS2MAPR:
 		n := n.(*ir.AssignListStmt)
 		return walkAssignMapRead(init, n)
@@ -783,8 +783,10 @@ func mapKeyArg(fast int, n, key ir.Node, assigned bool) ir.Node {
 }
 
 // walkIndexMap walks an OINDEXMAP node.
+//map通过下标访问替换
 // It replaces m[k] with *map{access1,assign}(maptype, m, &k)
 func walkIndexMap(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
+	//赋值
 	n.X = walkExpr(n.X, init)
 	n.Index = walkExpr(n.Index, init)
 	map_ := n.X
@@ -792,16 +794,18 @@ func walkIndexMap(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
 	fast := mapfast(t)
 	key := mapKeyArg(fast, n, n.Index, n.Assigned)
 	args := []ir.Node{reflectdata.IndexMapRType(base.Pos, n), map_, key}
-
 	var mapFn ir.Node
 	switch {
 	case n.Assigned:
-		mapFn = mapfn(mapassign[fast], t, false)
-	case t.Elem().Size() > zeroValSize:
+		mapFn = mapfn(mapassign[fast], t, false)   //两个参数
+		//Like mapaccess, but allocates a slot for the key if it is not present in the map.
+	case t.Elem().Size() > zeroValSize:    //类型太大
 		args = append(args, reflectdata.ZeroAddr(t.Elem().Size()))
 		mapFn = mapfn("mapaccess1_fat", t, true)
 	default:
 		mapFn = mapfn(mapaccess1[fast], t, false)
+		//mapaccess1 returns a pointer to h[key].  Never returns nil, instead
+		// it will return a reference to the zero object for the elem type if the key is not in the map.返回0指针
 	}
 	call := mkcall1(mapFn, nil, init, args...)
 	call.SetType(types.NewPtr(t.Elem()))
