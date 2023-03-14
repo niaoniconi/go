@@ -427,15 +427,15 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 	// make the map var
 	args := []ir.Node{ir.TypeNode(n.Type()), ir.NewInt(n.Len + int64(len(n.List)))}
-	a := typecheck.Expr(ir.NewCallExpr(base.Pos, ir.OMAKE, nil, args)).(*ir.MakeExpr)
+	a := typecheck.Expr(ir.NewCallExpr(base.Pos, ir.OMAKE, nil, args)).(*ir.MakeExpr)    //make map
 	a.RType = n.RType
 	a.SetEsc(n.Esc())
 	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, m, a))
 
-	entries := n.List
+	entries := n.List    //字面量列表
 
 	// The order pass already removed any dynamic (runtime-computed) entries.
-	// All remaining entries are static. Double-check that.
+	// All remaining entries are static. Double-check that.所有在这里出现的条目都是静态的
 	for _, r := range entries {
 		r := r.(*ir.KeyExpr)
 		if !isStaticCompositeLiteral(r.Key) || !isStaticCompositeLiteral(r.Value) {
@@ -443,12 +443,22 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		}
 	}
 
+	//一旦哈希表中元素的数量超过了 25 个，编译器会创建两个数组分别存储键和值，这些键值对会通过如下所示的 for 循环加入哈希：
+	/**
+	hash := make(map[string]int, 26)
+	vstatk := []string{"1", "2", "3", ... ， "26"}
+	vstatv := []int{1, 2, 3, ... , 26}
+	for i := 0; i < len(vstak); i++ {
+	    hash[vstatk[i]] = vstatv[i]
+	}
+
+	*/
 	if len(entries) > 25 {
 		// For a large number of entries, put them in an array and loop.
 
 		// build types [count]Tindex and [count]Tvalue
-		tk := types.NewArray(n.Type().Key(), int64(len(entries)))
-		te := types.NewArray(n.Type().Elem(), int64(len(entries)))
+		tk := types.NewArray(n.Type().Key(), int64(len(entries)))    //key array
+		te := types.NewArray(n.Type().Elem(), int64(len(entries)))   //value array
 
 		// TODO(#47904): mark tk and te NoAlg here once the
 		// compiler/linker can handle NoAlg types correctly.
@@ -502,7 +512,13 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		return
 	}
 	// For a small number of entries, just add them directly.
-
+	//当哈希表中的元素数量少于或者等于 25 个时，编译器会将字面量初始化的结构体转换成以下的代码，将所有的键值对一次加入到哈希表中：
+	/**
+	hash := make(map[string]int, 3)
+	hash["1"] = 2
+	hash["3"] = 4
+	hash["5"] = 5
+	*/
 	// Build list of var[c] = expr.
 	// Use temporaries so that mapassign1 can have addressable key, elem.
 	// TODO(josharian): avoid map key temporaries for mapfast_* assignments with literal keys.

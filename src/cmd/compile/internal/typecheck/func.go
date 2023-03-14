@@ -671,7 +671,7 @@ func tcMake(n *ir.CallExpr) ir.Node {
 		切片是否发生了逃逸，最终在堆上初始化
 		*/
 
-	case types.TMAP:
+	case types.TMAP:     //通过make创建map
 		if i < len(args) {
 			l = args[i]
 			i++

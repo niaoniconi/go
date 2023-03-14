@@ -94,6 +94,7 @@ func makefield(name string, t *types.Type) *types.Field {
 }
 
 // MapBucketType makes the map bucket type given the type of the map.
+// 不是很能理解这个函数是用来干嘛的，但是可以根据这个函数重建bmap运行时结构，是根据map类型创建bucket的类型吗？
 func MapBucketType(t *types.Type) *types.Type {
 	if t.MapType().Bucket != nil {
 		return t.MapType().Bucket

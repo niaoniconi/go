@@ -153,10 +153,10 @@ type mapextra struct {
 // A bucket for a Go map.
 //每一个 bmap 都能存储 8 个键值对，当哈希表中存储的数据过多，单个桶已经装满时就会使用 extra.nextOverflow 中桶存储溢出的数据。
 type bmap struct {
-	// tophash generally contains the top byte of the hash value
+	// tophash generally contains the top byte of the hash value 首字节
 	// for each key in this bucket. If tophash[0] < minTopHash,
-	// tophash[0] is a bucket evacuation state instead.
-	tophash [bucketCnt]uint8
+	// tophash[0] is a bucket evacuation state instead.同疏散状态？
+	tophash [bucketCnt]uint8       //bucketCnt=8
 	// Followed by bucketCnt keys and then bucketCnt elems.
 	// NOTE: packing all the keys together and then all the elems together makes the
 	// code a bit more complicated than alternating key/elem/key/elem/... but it allows
@@ -307,6 +307,7 @@ func makemap_small() *hmap {
 // If h != nil, the map can be created directly in h.
 // If h.buckets != nil, bucket pointed to can be used as the first bucket.
 func makemap(t *maptype, hint int, h *hmap) *hmap {
+	//1.计算哈希占用的内存是否溢出或者超出能分配的最大值；
 	mem, overflow := math.MulUintptr(uintptr(hint), t.bucket.size)
 	if overflow || mem > maxAlloc {
 		hint = 0
@@ -316,8 +317,10 @@ func makemap(t *maptype, hint int, h *hmap) *hmap {
 	if h == nil {
 		h = new(hmap)
 	}
+	//2.调用 runtime.fastrand 获取一个随机的哈希种子；
 	h.hash0 = fastrand()
 
+	//3.根据传入的 hint 计算出需要的最小需要的桶的数量；
 	// Find the size parameter B which will hold the requested # of elements.
 	// For hint < 0 overLoadFactor returns false since hint < bucketCnt.
 	B := uint8(0)

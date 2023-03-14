@@ -338,6 +338,7 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		}
 	}
 
+	//小于BUCKETSIZE
 	if ir.IsConst(hint, constant.Int) && constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(reflectdata.BUCKETSIZE)) {
 		// Handling make(map[any]any) and
 		// make(map[any]any, hint) where hint <= BUCKETSIZE
