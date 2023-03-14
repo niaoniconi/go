@@ -113,17 +113,20 @@ func isEmpty(x uint8) bool {
 	return x <= emptyOne
 }
 
-// A header for a Go map.
+// A header for a Go map.go map的数据结构
 type hmap struct {
 	// Note: the format of the hmap is also encoded in cmd/compile/internal/reflectdata/reflect.go.
 	// Make sure this stays in sync with the compiler's definition.
-	count     int // # live cells == size of map.  Must be first (used by len() builtin)
+	count     int // # live cells == size of map.  Must be first (used by len() builtin)  表示当前哈希表中的元素数量；
 	flags     uint8
+	//B 表示当前哈希表持有的 buckets 数量，但是因为哈希表中桶的数量都 是2 的倍数，所以该字段会存储对数，也就是 len(buckets) == 2^B；
 	B         uint8  // log_2 of # of buckets (can hold up to loadFactor * 2^B items)
 	noverflow uint16 // approximate number of overflow buckets; see incrnoverflow for details
+	//hash0 是哈希的种子，它能为哈希函数的结果引入随机性，这个值在创建哈希表时确定，并在调用哈希函数时作为参数传入；
 	hash0     uint32 // hash seed
 
 	buckets    unsafe.Pointer // array of 2^B Buckets. may be nil if count==0.
+	//oldbuckets 是哈希在扩容时用于保存之前 buckets 的字段，它的大小是当前 buckets 的一半； 只在扩容时非空
 	oldbuckets unsafe.Pointer // previous bucket array of half the size, non-nil only when growing
 	nevacuate  uintptr        // progress counter for evacuation (buckets less than this have been evacuated)
 
@@ -143,11 +146,12 @@ type mapextra struct {
 	overflow    *[]*bmap
 	oldoverflow *[]*bmap
 
-	// nextOverflow holds a pointer to a free overflow bucket.
+	// nextOverflow holds a pointer to a free overflow bucket.  储存溢出的数据
 	nextOverflow *bmap
 }
 
 // A bucket for a Go map.
+//每一个 bmap 都能存储 8 个键值对，当哈希表中存储的数据过多，单个桶已经装满时就会使用 extra.nextOverflow 中桶存储溢出的数据。
 type bmap struct {
 	// tophash generally contains the top byte of the hash value
 	// for each key in this bucket. If tophash[0] < minTopHash,
