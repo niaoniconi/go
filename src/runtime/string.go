@@ -22,6 +22,7 @@ type tmpBuf [tmpStringBufSize]byte
 // If buf != nil, the compiler has determined that the result does not
 // escape the calling function, so the string data can be stored in buf
 // if small enough.
+//拼接字符串的真正函数
 func concatstrings(buf *tmpBuf, a []string) string {
 	idx := 0
 	l := 0
@@ -42,15 +43,16 @@ func concatstrings(buf *tmpBuf, a []string) string {
 		return ""
 	}
 
+	//如果非空字符串的数量为 1 并且当前的字符串不在栈上，就可以直接返回该字符串，不需要做出额外
 	// If there is just one string and either it is not on the stack
-	// or our result does not escape the calling frame (buf != nil),
+	// or our result does not escape the calling frame (buf != nil),  没从帧中逃逸
 	// then we can return that string directly.
 	if count == 1 && (buf != nil || !stringDataOnStack(a[idx])) {
 		return a[idx]
 	}
-	s, b := rawstringtmp(buf, l)
+	s, b := rawstringtmp(buf, l)   //创建一个期望长度的字符串
 	for _, x := range a {
-		copy(b, x)
+		copy(b, x)      //其实是复制
 		b = b[len(x):]
 	}
 	return s
@@ -78,8 +80,9 @@ func concatstring5(buf *tmpBuf, a0, a1, a2, a3, a4 string) string {
 // n is the length of the slice.
 // Buf is a fixed-size buffer for the result,
 // it is not nil if the result does not escape.
+//string的类型转换
 func slicebytetostring(buf *tmpBuf, ptr *byte, n int) string {
-	if n == 0 {
+	if n == 0 {   //长度为0
 		// Turns out to be a relatively common case.
 		// Consider that you want to parse out data between parens in "foo()bar",
 		// you find the indices and convert the subslice to string.
@@ -97,7 +100,7 @@ func slicebytetostring(buf *tmpBuf, ptr *byte, n int) string {
 	if asanenabled {
 		asanread(unsafe.Pointer(ptr), uintptr(n))
 	}
-	if n == 1 {
+	if n == 1 {       //长度为1
 		p := unsafe.Pointer(&staticuint64s[*ptr])
 		if goarch.BigEndian {
 			p = add(p, 7)
@@ -106,11 +109,18 @@ func slicebytetostring(buf *tmpBuf, ptr *byte, n int) string {
 	}
 
 	var p unsafe.Pointer
-	if buf != nil && n <= len(buf) {
-		p = unsafe.Pointer(buf)
+	if buf != nil && n <= len(buf) {  //根据传入的缓冲区大小决定是否需要为新字符串分配一片内存空间，
+		p = unsafe.Pointer(buf)        //还有空间，在缓冲区分配
 	} else {
 		p = mallocgc(uintptr(n), nil, false)
 	}
+	/**之前的代码还有这一段，那个时候，string用的还是结构体，现在是用一个string 运行中用函数unsafe.String*
+	**之前函数没传数组长度，现在传了*
+	stringStructOf(&str).str = p
+	stringStructOf(&str).len = len(b)
+	runtime.stringStructOf 会将传入的字符串指针转换成 runtime.stringStruct 结构体指针，然后设置结构体持有的字符串指针 str 和长度 len，
+	最后通过 runtime.memmove 将原 []byte 中的字节全部复制到新的内存空间中
+	 */
 	memmove(p, unsafe.Pointer(ptr), uintptr(n))
 	return unsafe.String((*byte)(p), n)
 }
@@ -163,15 +173,16 @@ func slicebytetostringtmp(ptr *byte, n int) string {
 	return unsafe.String(ptr, n)
 }
 
+//byte字符串转数组
 func stringtoslicebyte(buf *tmpBuf, s string) []byte {
 	var b []byte
-	if buf != nil && len(s) <= len(buf) {
+	if buf != nil && len(s) <= len(buf) {    //是否传入缓冲区，缓冲区大小是否合适
 		*buf = tmpBuf{}
 		b = buf[:len(s)]
 	} else {
-		b = rawbyteslice(len(s))
+		b = rawbyteslice(len(s))    //不是缓冲区，创建新的字节切片
 	}
-	copy(b, s)
+	copy(b, s)      //最后拷贝
 	return b
 }
 

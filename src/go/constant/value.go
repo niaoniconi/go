@@ -424,7 +424,7 @@ func MakeFloat64(x float64) Value {
 // tok value must be one of token.INT, token.FLOAT, token.IMAG,
 // token.CHAR, or token.STRING. The final argument must be zero.
 // If the literal string syntax is invalid, the result is an Unknown.
-func MakeFromLiteral(lit string, tok token.Token, zero uint) Value {
+func MakeFromLiteral(lit string, tok token.Token, zero uint) Value {   //疑似处理string
 	if zero != 0 {
 		panic("MakeFromLiteral called with non-zero last argument")
 	}

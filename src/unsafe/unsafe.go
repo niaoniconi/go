@@ -259,7 +259,7 @@ func SliceData(slice []ArbitraryType) *ArbitraryType
 //
 // Since Go strings are immutable, the bytes passed to String
 // must not be modified afterwards.
-func String(ptr *byte, len IntegerType) string
+func String(ptr *byte, len IntegerType) string     //入参是指针和长度，返回是string
 
 // StringData returns a pointer to the underlying bytes of str.
 // For an empty string the return value is unspecified, and may be nil.

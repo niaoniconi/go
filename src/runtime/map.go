@@ -425,13 +425,13 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	hash := t.hasher(key, uintptr(h.hash0))   //key hash之后的值
 	m := bucketMask(h.B)                     //拿到桶的序号
 	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))  //拿到桶的指针
-	if c := h.oldbuckets; c != nil {       //正在扩容？奇怪的一段
-		if !h.sameSizeGrow() {
+	if c := h.oldbuckets; c != nil {       //如果老桶子们不为空，那就是还在扩容
+		if !h.sameSizeGrow() {             //如果不是等量扩容
 			// There used to be half as many buckets; mask down one more power of two.
-			m >>= 1
+			m >>= 1   //容量除2，找找老桶
 		}
 		oldb := (*bmap)(add(c, (hash&m)*uintptr(t.bucketsize)))
-		if !evacuated(oldb) {
+		if !evacuated(oldb) {  //看一下老桶有没有迁移到新桶，如果没有，那就用老桶里的数据；否则，用新的桶
 			b = oldb
 		}
 	}
@@ -746,16 +746,16 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 	// in which case we have not actually done a write (delete).
 	h.flags ^= hashWriting
 
-	bucket := hash & bucketMask(h.B)
-	if h.growing() {
+	bucket := hash & bucketMask(h.B)  //拿到目标桶
+	if h.growing() {     //如果正在扩容，分流桶中的元素，每次分流两个是吧，好家伙
 		growWork(t, h, bucket)
 	}
-	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
+	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))    //拿到新桶中的元素，如果在分流，也是分流之后新桶的元素
 	bOrig := b
 	top := tophash(hash)
 search:
-	for ; b != nil; b = b.overflow(t) {
-		for i := uintptr(0); i < bucketCnt; i++ {
+	for ; b != nil; b = b.overflow(t) {    //找不到就找溢出桶
+		for i := uintptr(0); i < bucketCnt; i++ {    //看看桶里有没有这个元素，有则删了
 			if b.tophash[i] != top {
 				if b.tophash[i] == emptyRest {
 					break search
@@ -1157,9 +1157,9 @@ func growWork(t *maptype, h *hmap, bucket uintptr) {
 	// to the bucket we're about to use
 	evacuate(t, h, bucket&h.oldbucketmask())     //先把要用的那个桶，迁移到新的桶序列中
 
-	// evacuate one more oldbucket to make progress on growing
+	// evacuate one more oldbucket to make progress on growing  ？？是一个慢速迁移的过程吗？
 	if h.growing() {
-		//nevacuate 一个指针
+		//nevacuate 一个指针，每次除了正要清理的桶，再多清理一个
 		evacuate(t, h, h.nevacuate)    //progress counter for evacuation (buckets less than this have been evacuated) 小于nevacuate，清理
 	}
 }
@@ -1180,7 +1180,7 @@ type evacDst struct {
 func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 	b := (*bmap)(add(h.oldbuckets, oldbucket*uintptr(t.bucketsize)))     //需要扩容的通指针
 	newbit := h.noldbuckets()
-	if !evacuated(b) {
+	if !evacuated(b) {        //如果b没有被evacuate
 		// TODO: reuse overflow buckets instead of using new ones, if there
 		// is no iterator using the old buckets.  (If !oldIterator.)
 		//runtime.evacuate 会将一个旧桶中的数据分流到两个新桶，
@@ -1201,7 +1201,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 			y.e = add(y.k, bucketCnt*uintptr(t.keysize))
 		}
 
-		for ; b != nil; b = b.overflow(t) {
+		for ; b != nil; b = b.overflow(t) {  //看看溢出桶，处理一下b的所有溢出桶
 			k := add(unsafe.Pointer(b), dataOffset)
 			e := add(k, bucketCnt*uintptr(t.keysize))
 			for i := 0; i < bucketCnt; i, k, e = i+1, add(k, uintptr(t.keysize)), add(e, uintptr(t.elemsize)) {
@@ -1218,7 +1218,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 					k2 = *((*unsafe.Pointer)(k2))
 				}
 				var useY uint8
-				if !h.sameSizeGrow() {
+				if !h.sameSizeGrow() {   //不是等量扩容，没时间看了，之后再看吧
 					// Compute hash to make our evacuation decision (whether we need
 					// to send this key/elem to bucket x or bucket y).
 					hash := t.hasher(k2, uintptr(h.hash0))
@@ -1276,7 +1276,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 				dst.e = add(dst.e, uintptr(t.elemsize))
 			}
 		}
-		// Unlink the overflow buckets & clear key/elem to help GC.
+		// Unlink the overflow buckets & clear key/elem to help GC.      //让overflow可以被gc收集，做清理
 		if h.flags&oldIterator == 0 && t.bucket.ptrdata != 0 {
 			b := add(h.oldbuckets, oldbucket*uintptr(t.bucketsize))
 			// Preserve b.tophash because the evacuation
@@ -1287,7 +1287,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 		}
 	}
 
-	if oldbucket == h.nevacuate {   //nevacuate是不是指向头指针？
+	if oldbucket == h.nevacuate {   //nevacuate是不是指向桶头指针？如果是的话，nevacuate后移
 		//runtime.evacuate 最后会调用 runtime.advanceEvacuationMark
 		//增加哈希的 nevacuate 计数器并在所有的旧桶都被分流后清空哈希的 oldbuckets 和 oldoverflow：
 		advanceEvacuationMark(h, t, newbit)
@@ -1295,17 +1295,17 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 }
 
 func advanceEvacuationMark(h *hmap, t *maptype, newbit uintptr) {
-	h.nevacuate++
+	h.nevacuate++     //指向下一个需要分流的
 	// Experiments suggest that 1024 is overkill by at least an order of magnitude.
 	// Put it in there as a safeguard anyway, to ensure O(1) behavior.
 	stop := h.nevacuate + 1024
 	if stop > newbit {
 		stop = newbit
 	}
-	for h.nevacuate != stop && bucketEvacuated(t, h, h.nevacuate) {
+	for h.nevacuate != stop && bucketEvacuated(t, h, h.nevacuate) {   //是否已经分流
 		h.nevacuate++
 	}
-	if h.nevacuate == newbit { // newbit == # of oldbuckets
+	if h.nevacuate == newbit { // newbit == # of oldbuckets   //如果所有旧桶都迁移到新桶
 		// Growing is all done. Free old main bucket array.
 		h.oldbuckets = nil
 		// Can discard old overflow buckets as well.

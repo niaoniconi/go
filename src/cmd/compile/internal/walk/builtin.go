@@ -242,7 +242,7 @@ func walkDelete(init *ir.Nodes, n *ir.CallExpr) ir.Node {
 	key = walkExpr(key, init)
 
 	t := map_.Type()
-	fast := mapfast(t)
+	fast := mapfast(t)     //返回是fast str还是fast32还是fast64 还是slow，根据key的类型判断，key可以是结构体
 	key = mapKeyArg(fast, n, key, false)
 	return mkcall1(mapfndel(mapdelete[fast], t), nil, init, reflectdata.DeleteMapRType(base.Pos, n), map_, key)
 }

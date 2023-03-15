@@ -2738,12 +2738,12 @@ func (v Value) UnsafePointer() unsafe.Pointer {
 
 // StringHeader is the runtime representation of a string.
 // It cannot be used safely or portably and its representation may
-// change in a later release.
+// change in a later release.   哦哦，之后可能会更改
 // Moreover, the Data field is not sufficient to guarantee the data
-// it references will not be garbage collected, so programs must keep
+// it references will not be garbage collected, so programs must keep   //可能会造成引用不被gc收集
 // a separate, correctly typed pointer to the underlying data.
 //
-// In new code, use unsafe.String or unsafe.StringData instead.
+// In new code, use unsafe.String or unsafe.StringData instead.       //
 type StringHeader struct {
 	Data uintptr
 	Len  int

@@ -672,7 +672,7 @@ func (s *scanner) rune() {
 
 	s.setLit(RuneLit, ok)
 }
-
+//堂堂解析字符串中
 func (s *scanner) stdString() {
 	ok := true
 	s.nextch()
@@ -682,14 +682,14 @@ func (s *scanner) stdString() {
 			s.nextch()
 			break
 		}
-		if s.ch == '\\' {
+		if s.ch == '\\' {  //需要反斜杠逃逸双引号
 			s.nextch()
 			if !s.escape('"') {
 				ok = false
 			}
 			continue
 		}
-		if s.ch == '\n' {
+		if s.ch == '\n' {        //不能换行
 			s.errorf("newline in string")
 			ok = false
 			break
@@ -705,6 +705,7 @@ func (s *scanner) stdString() {
 	s.setLit(StringLit, ok)
 }
 
+//解析反引号的字符串中，规则非常简单
 func (s *scanner) rawString() {
 	ok := true
 	s.nextch()

@@ -461,7 +461,7 @@ func copyExpr(n ir.Node, t *types.Type, init *ir.Nodes) ir.Node {
 }
 
 func walkAddString(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
-	c := len(n.List)
+	c := len(n.List)      //需要拼接的字符串个数
 
 	if c < 2 {
 		base.Fatalf("walkAddString count %d too small", c)
@@ -490,12 +490,13 @@ func walkAddString(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
 	}
 
 	var fn string
-	if c <= 5 {
+	if c <= 5 {     //如果小于或者等于 5 个，那么会调用 concatstring{2,3,4,5} 等一系列函数；
 		// small numbers of strings use direct runtime helpers.
 		// note: order.expr knows this cutoff too.
 		fn = fmt.Sprintf("concatstring%d", c)
 	} else {
 		// large numbers of strings are passed to the runtime as a slice.
+		//如果超过 5 个，那么会选择 runtime.concatstrings 传入一个数组切片；
 		fn = "concatstrings"
 
 		t := types.NewSlice(types.Types[types.TSTRING])
