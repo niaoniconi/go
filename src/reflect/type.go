@@ -26,7 +26,7 @@ import (
 )
 
 // Type is the representation of a Go type.
-//
+// reflect.type
 // Not all methods apply to all kinds of types. Restrictions,
 // if any, are noted in the documentation for each method.
 // Use the Kind method to find out the kind of type before
@@ -58,7 +58,7 @@ type Type interface {
 	// method signature, without a receiver, and the Func field is nil.
 	//
 	// Methods are sorted in lexicographic order.
-	Method(int) Method
+	Method(int) Method   //可以通过 Method 方法获得类型实现的方法
 
 	// MethodByName returns the method with that name in the type's
 	// method set and a boolean indicating if the method was found.
@@ -162,17 +162,17 @@ type Type interface {
 	// Field returns a struct type's i'th field.
 	// It panics if the type's Kind is not Struct.
 	// It panics if i is not in the range [0, NumField()).
-	Field(i int) StructField
+	Field(i int) StructField  //通过 Field 获取类型包含的全部字段。对于不同的类型，我们也可以调用不同的方法获取相关信息：
 
 	// FieldByIndex returns the nested field corresponding
 	// to the index sequence. It is equivalent to calling Field
 	// successively for each index i.
 	// It panics if the type's Kind is not Struct.
-	FieldByIndex(index []int) StructField
+	FieldByIndex(index []int) StructField //哈希表：获取哈希表的 Key 类型；
 
 	// FieldByName returns the struct field with the given name
 	// and a boolean indicating if the field was found.
-	FieldByName(name string) (StructField, bool)
+	FieldByName(name string) (StructField, bool)  //结构体：获取字段的数量并通过下标和字段名获取字段 StructField；
 
 	// FieldByNameFunc returns the struct field with a name
 	// that satisfies the match function and a boolean indicating if
@@ -186,7 +186,7 @@ type Type interface {
 	// and FieldByNameFunc returns no match.
 	// This behavior mirrors Go's handling of name lookup in
 	// structs containing embedded fields.
-	FieldByNameFunc(match func(string) bool) (StructField, bool)
+	FieldByNameFunc(match func(string) bool) (StructField, bool) //函数或方法：获取入参和返回值的类型；
 
 	// In returns the type of a function type's i'th input parameter.
 	// It panics if the type's Kind is not Func.
@@ -313,7 +313,8 @@ const (
 
 // rtype is the common implementation of most values.
 // It is embedded in other struct types.
-//
+//rtype 字段用于表示变量的类型
+//reflect.rtype 是一个实现了 reflect.Type 接口的结构体，该结构体实现的 reflect.rtype.String 方法可以帮助我们获取当前类型的名称：
 // rtype must be kept in sync with ../runtime/type.go:/^type._type.
 type rtype struct {
 	size       uintptr
@@ -1436,8 +1437,13 @@ func (t *structType) FieldByName(name string) (f StructField, present bool) {
 
 // TypeOf returns the reflection Type that represents the dynamic type of i.
 // If i is a nil interface value, TypeOf returns nil.
+//any is an alias for interface{} and is equivalent to interface{} in all ways.
+//type any = interface{} any就是接口的意思
 func TypeOf(i any) Type {
-	eface := *(*emptyInterface)(unsafe.Pointer(&i))
+	// reflect.TypeOf 函数将传入的变量隐式转换成 reflect.emptyInterface 类型并获取其中存储的类型信息 reflect.rtype：
+	eface := *(*emptyInterface)(unsafe.Pointer(&i))  //强制转换，unsafe 强制转换是指针的底层操作了，
+	// 用 c 的朋友就很熟悉这样的指针类型转换，利用内存对齐才能保证转换可靠，例如 int 和 uint 存在符号位差别，
+	//利用 unsafe 转换后值可能不同，但是在内存存储二进制一模一样。
 	return toType(eface.typ)
 }
 
@@ -1515,10 +1521,10 @@ func fnv1(x uint32, list ...byte) uint32 {
 }
 
 func (t *rtype) Implements(u Type) bool {
-	if u == nil {
+	if u == nil {  //空值会崩溃
 		panic("reflect: nil type passed to Type.Implements")
 	}
-	if u.Kind() != Interface {
+	if u.Kind() != Interface {  //不是接口会崩溃
 		panic("reflect: non-interface type passed to Type.Implements")
 	}
 	return implements(u.(*rtype), t)
@@ -1546,11 +1552,11 @@ func (t *rtype) Comparable() bool {
 
 // implements reports whether the type V implements the interface type T.
 func implements(T, V *rtype) bool {
-	if T.Kind() != Interface {
+	if T.Kind() != Interface { //如果目标类型不是接口，返回错误
 		return false
 	}
 	t := (*interfaceType)(unsafe.Pointer(T))
-	if len(t.methods) == 0 {
+	if len(t.methods) == 0 {  // 如果接口中不包含任何方法，就意味着这是一个空的接口，任意类型都自动实现该接口，这时会直接返回 true。
 		return true
 	}
 
@@ -1566,9 +1572,11 @@ func implements(T, V *rtype) bool {
 	// This lets us run the scan in overall linear time instead of
 	// the quadratic time  a naive search would require.
 	// See also ../runtime/iface.go.
+	//方法都是按照字母序存储的
 	if V.Kind() == Interface {
 		v := (*interfaceType)(unsafe.Pointer(V))
 		i := 0
+		//会维护两个用于遍历接口和类型方法的索引 i 和 j 判断类型是否实现了接口，因为最多只会进行 n 次比较（类型的方法数量）
 		for j := 0; j < len(v.methods); j++ {
 			tm := &t.methods[i]
 			tmName := t.nameOff(tm.name)

@@ -123,8 +123,21 @@ func walkStmt(n ir.Node) ir.Node {
 		return walkGoDefer(n)
 
 	case ir.OFOR:
-		n := n.(*ir.ForStmt)
-		return walkFor(n)
+		// A ForStmt is a non-range for loop: for Init; Cond; Post { Body }
+		// Op can be OFOR or OFORUNTIL (!Cond).
+		/**
+		type ForStmt struct {
+			miniStmt
+			Label    *types.Sym
+			Cond     Node
+			Late     Nodes
+			Post     Node
+			Body     Nodes
+			HasBreak bool
+		}
+		 */
+		n := n.(*ir.ForStmt)  //先断言，转成forstmt类型
+		return walkFor(n)  //分块调用walkstmt
 
 	case ir.OIF:
 		n := n.(*ir.IfStmt)

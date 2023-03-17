@@ -143,6 +143,7 @@ func packEface(v Value) any {
 }
 
 // unpackEface converts the empty interface i to a Value.
+//会将传入的接口转换成 reflect.emptyInterface，然后将具体类型和指针包装成 reflect.Value 结构体后返回。
 func unpackEface(i any) Value {
 	e := (*emptyInterface)(unsafe.Pointer(&i))
 	// NOTE: don't read e.word until we know whether it is really a pointer or not.
@@ -193,9 +194,10 @@ func valueMethodName() string {
 }
 
 // emptyInterface is the header for an interface{} value.
+//Go 语言的 interface{} 类型在语言内部是通过 reflect.emptyInterface 结体表示的，其中的 rtype 字段用于表示变量的类型，另一个 word 字段指向内部封装的数据：
 type emptyInterface struct {
-	typ  *rtype
-	word unsafe.Pointer
+	typ  *rtype        //变量的类型，实现了reflect.Type接口，
+	word unsafe.Pointer  //指向内部封装的数据：
 }
 
 // nonEmptyInterface is the header for an interface value with methods.
@@ -365,9 +367,9 @@ func (v Value) CanSet() bool {
 // If v is a variadic function, Call creates the variadic slice parameter
 // itself, copying in the corresponding values.
 func (v Value) Call(in []Value) []Value {
-	v.mustBe(Func)
-	v.mustBeExported()
-	return v.call("Call", in)
+	v.mustBe(Func)            //必须是函数
+	v.mustBeExported()		  //必须是可公开的
+	return v.call("Call", in)  //调用函数
 }
 
 // CallSlice calls the variadic function v with the input arguments in,
@@ -395,8 +397,9 @@ func (v Value) call(op string, in []Value) []Value {
 		rcvr     Value
 		rcvrtype *rtype
 	)
-	if v.flag&flagMethod != 0 {
+	if v.flag&flagMethod != 0 {  // 在参数检查期间我们会从反射对象中取出当前的函数指针 unsafe.Pointer，
 		rcvr = v
+		//如果该函数指针是方法,那么我们会通过 reflect.methodReceiver 获取方法的接收者和函数指针。
 		rcvrtype, t, fn = methodReceiver(op, v, int(v.flag)>>flagMethodShift)
 	} else if v.flag&flagIndir != 0 {
 		fn = *(*unsafe.Pointer)(v.ptr)
@@ -408,9 +411,9 @@ func (v Value) call(op string, in []Value) []Value {
 		panic("reflect.Value.Call: call of nil function")
 	}
 
-	isSlice := op == "CallSlice"
+	isSlice := op == "CallSlice"     //这是什么东西？入参有切片？
 	n := t.NumIn()
-	isVariadic := t.IsVariadic()
+	isVariadic := t.IsVariadic()    //这是什么东西？
 	if isSlice {
 		if !isVariadic {
 			panic("reflect: CallSlice of non-variadic function")
@@ -432,11 +435,13 @@ func (v Value) call(op string, in []Value) []Value {
 			panic("reflect: Call with too many input arguments")
 		}
 	}
+	//校验参数是否合法
 	for _, x := range in {
 		if x.Kind() == Invalid {
 			panic("reflect: " + op + " using zero Value argument")
 		}
 	}
+	//检查传入参数的个数以及参数的类型与函数签名中的类型是否可以匹配，任何参数的不匹配都会导致整个程序的崩溃中止。
 	for i := 0; i < n; i++ {
 		if xt, targ := in[i].Type(), t.In(i); !xt.AssignableTo(targ) {
 			panic("reflect: " + op + " using " + xt.String() + " as type " + targ.String())
@@ -461,15 +466,17 @@ func (v Value) call(op string, in []Value) []Value {
 	}
 
 	nin := len(in)
-	if nin != t.NumIn() {
+	if nin != t.NumIn() {     //参数个数校验
 		panic("reflect.Value.Call: wrong argument count")
 	}
+	//在前面函数调用一节中，我们已经介绍过 Go 语言的函数调用惯例，函数或者方法在调用时，所有的参数都会被依次放到栈上。
 	nout := t.NumOut()
 
 	// Register argument space.
 	var regArgs abi.RegArgs
 
 	// Compute frame type.
+	//通过 reflect.funcLayout 计算当前函数需要的参数和返回值的栈布局，也就是每一个参数和返回值所占的空间大小；
 	frametype, framePool, abid := funcLayout(t, rcvrtype)
 
 	// Allocate a chunk of memory for frame if needed.
@@ -478,6 +485,7 @@ func (v Value) call(op string, in []Value) []Value {
 		if nout == 0 {
 			stackArgs = framePool.Get().(unsafe.Pointer)
 		} else {
+			//如果当前函数有返回值，需要为当前函数的参数和返回值分配一片内存空间 args；
 			// Can't use pool if the function has return values.
 			// We will leak pointer to args in ret, so its lifetime is not scoped.
 			stackArgs = unsafe_New(frametype)
@@ -491,9 +499,9 @@ func (v Value) call(op string, in []Value) []Value {
 	}
 
 	// Copy inputs into args.
-
 	// Handle receiver.
 	inStart := 0
+	//如果当前函数是方法，需要向将方法的接收接收者者拷贝到 args 内存中；(方法指的是对象的方法，ok了)
 	if rcvrtype != nil {
 		// Guaranteed to only be one word in size,
 		// so it will only take up exactly 1 abiStep (either
@@ -515,6 +523,9 @@ func (v Value) call(op string, in []Value) []Value {
 	}
 
 	// Handle arguments.
+	// 将所有函数的参数按照顺序依次拷贝到对应 args 内存中
+	//使用 reflect.funcLayout 返回的参数计算参数在内存中的位置；
+	//将参数拷贝到内存空间中；
 	for i, v := range in {
 		v.mustBeExported()
 		targ := t.In(i).(*rtype)
@@ -582,16 +593,19 @@ func (v Value) call(op string, in []Value) []Value {
 		runtime.GC()
 	}
 
-	// Call.
+	// Call.  调用函数  。我们会向该函数传入栈类型、函数指针、参数和返回值的内存空间、栈的大小以及返回值的偏移量：
 	call(frametype, fn, stackArgs, uint32(frametype.size), uint32(abid.retOffset), uint32(frameSize), &regArgs)
+	//上述函数实际上并不存在，它会在编译期间链接到 reflect.reflectcall 这个用汇编实现的函数上。
 
 	// For testing; see TestCallMethodJump.
 	if callGC {
 		runtime.GC()
 	}
 
+	//处理返回值
 	var ret []Value
 	if nout == 0 {
+		//如果函数没有任何返回值，会直接清空 args 中的全部内容来释放内存空间；
 		if stackArgs != nil {
 			typedmemclr(frametype, stackArgs)
 			framePool.Put(stackArgs)
@@ -605,6 +619,7 @@ func (v Value) call(op string, in []Value) []Value {
 		}
 
 		// Wrap Values around return values in args.
+		// 创建一个 nout 长度的切片用于保存由反射对象构成的返回值数组
 		ret = make([]Value, nout)
 		for i := 0; i < nout; i++ {
 			tv := t.Out(i)
@@ -614,6 +629,7 @@ func (v Value) call(op string, in []Value) []Value {
 				ret[i] = Zero(tv)
 				continue
 			}
+			//从函数对象中获取返回值的类型和内存大小，将 args 内存中的数据转换成 reflect.Value 类型并存储到切片中；
 			steps := abid.ret.stepsForValue(i)
 			if st := steps[0]; st.kind == abiStepStack {
 				// This value is on the stack. If part of a value is stack
@@ -670,7 +686,7 @@ func (v Value) call(op string, in []Value) []Value {
 			ret[i] = Value{tv.common(), s, flagIndir | flag(tv.Kind())}
 		}
 	}
-
+	//由 reflect.Value 构成的 ret 数组会被返回到调用方，到这里为止使用反射实现函数调用的过程就结束了。
 	return ret
 }
 
@@ -2227,12 +2243,13 @@ func (v Value) send(x Value, nb bool) (selected bool) {
 // As in Go, x's value must be assignable to v's type and
 // must not be derived from an unexported field.
 func (v Value) Set(x Value) {
-	v.mustBeAssignable()
-	x.mustBeExported() // do not let unexported x leak
+	v.mustBeAssignable()   //检查当前反射对象是否是可以被设置的
+	x.mustBeExported() // do not let unexported x leak  字段是否是对外公开的：不能泄露
 	var target unsafe.Pointer
 	if v.kind() == Interface {
 		target = v.ptr
 	}
+	//调用 reflect.Value.assignTo 并返回一个新的反射对象，这个返回的反射对象指针会直接覆盖原反射变量。
 	x = x.assignTo("reflect.Set", v.typ, target)
 	if x.flag&flagIndir != 0 {
 		if x.ptr == unsafe.Pointer(&zeroVal[0]) {
@@ -3226,21 +3243,22 @@ func NewAt(typ Type, p unsafe.Pointer) Value {
 // For a conversion to an interface type, target, if not nil,
 // is a suggested scratch space to use.
 // target must be initialized memory (or nil).
-func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value {
+func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value {  //dst类型，target要设置的值
 	if v.flag&flagMethod != 0 {
 		v = makeMethodValue(context, v)
 	}
-
+	//根据当前和被设置的反射对象类型创建一个新的 reflect.Value 结构体：
 	switch {
+	//如果两个反射对象的类型是可以被直接替换，就会直接返回目标反射对象；
 	case directlyAssignable(dst, v.typ):
 		// Overwrite type so that they match.
 		// Same memory layout, so no harm done.
 		fl := v.flag&(flagAddr|flagIndir) | v.flag.ro()
 		fl |= flag(dst.Kind())
 		return Value{dst, v.ptr, fl}
-
+	//如果当前反射对象是接口并且目标对象实现了接口，就会把目标对象简单包装成接口值；
 	case implements(dst, v.typ):
-		if v.Kind() == Interface && v.IsNil() {
+		if v.Kind() == Interface && v.IsNil() {  //目标值是空
 			// A nil ReadWriter passed to nil Reader is OK,
 			// but using ifaceE2I below will panic.
 			// Avoid the panic by returning a nil dst (e.g., Reader) explicitly.

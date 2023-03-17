@@ -38,6 +38,7 @@ func cheapComputableIndex(width int64) bool {
 // Node n may also be modified in place, and may also be
 // the returned node.
 func walkRange(nrange *ir.RangeStmt) ir.Node {
+	//如果是map清理的话，先进行map清理
 	if isMapClear(nrange) {
 		return mapRangeClear(nrange)
 	}
@@ -78,6 +79,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		base.Fatalf("walkRange")
 
 	case types.TARRAY, types.TSLICE, types.TPTR: // TPTR is pointer-to-array
+	//arrayRangeClear是一个非常有趣的优化，它会优化 Go 语言遍历数组或者切片并删除全部元素的逻辑：
 		if nn := arrayRangeClear(nrange, v1, v2, a); nn != nil {
 			base.Pos = lno
 			return nn
