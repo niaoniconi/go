@@ -593,7 +593,7 @@ func mapaccess2_fat(t *maptype, h *hmap, key, zero unsafe.Pointer) (unsafe.Point
 	return e, true
 }
 
-// Like mapaccess, but allocates a slot for the key if it is not present in the map.  接受两个参数，v,ok:=map[k]
+// Like mapaccess, but allocates a slot for the key if it is not present in the map  map[key]=value
 func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	if h == nil {   //空map报panic
 		panic(plainError("assignment to entry in nil map"))
@@ -837,6 +837,7 @@ search:
 // The hiter struct pointed to by 'it' is allocated on the stack
 // by the compilers order pass or on the heap by reflect_mapiterinit.
 // Both need to have zeroed hiter since the struct contains pointers.
+//遍历哈希表时会使用 runtime.mapiterinit 函数初始化遍历开始的元素：
 func mapiterinit(t *maptype, h *hmap, it *hiter) {
 	if raceenabled && h != nil {
 		callerpc := getcallerpc()
@@ -866,6 +867,8 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 		it.oldoverflow = h.extra.oldoverflow
 	}
 
+	//该函数会初始化 runtime.hiter 结构体中的字段，并通过 runtime.fastrand 生成一个随机数帮助我们随机选择一个遍历桶的起始位置。
+	// Go 团队在设计哈希表的遍历时就不想让使用者依赖固定的遍历顺序，所以引入了随机数保证遍历的随机性。
 	// decide where to start
 	var r uintptr
 	if h.B > 31-bucketCntBits {
@@ -885,7 +888,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 		atomic.Or8(&h.flags, iterator|oldIterator)
 	}
 
-	mapiternext(it)
+	mapiternext(it)     //遍历哈希会使用 runtime.mapiternext
 }
 
 func mapiternext(it *hiter) {
@@ -899,19 +902,19 @@ func mapiternext(it *hiter) {
 	}
 	t := it.t
 	bucket := it.bucket
-	b := it.bptr
+	b := it.bptr     //从上一个函数选定的桶开始
 	i := it.i
 	checkBucket := it.checkBucket
 
 next:
-	if b == nil {
+	if b == nil {    //b等于空
 		if bucket == it.startBucket && it.wrapped {
 			// end of iteration
 			it.key = nil
 			it.elem = nil
 			return
 		}
-		if h.growing() && it.B == h.B {
+		if h.growing() && it.B == h.B {     //如果map
 			// Iterator was started in the middle of a grow, and the grow isn't done yet.
 			// If the bucket we're looking at hasn't been filled in yet (i.e. the old
 			// bucket hasn't been evacuated) then we need to iterate through the old
@@ -935,7 +938,7 @@ next:
 		}
 		i = 0
 	}
-	for ; i < bucketCnt; i++ {
+	for ; i < bucketCnt; i++ {   //对b桶内部的元素进行遍历
 		offi := (i + it.offset) & (bucketCnt - 1)
 		if isEmpty(b.tophash[offi]) || b.tophash[offi] == evacuatedEmpty {
 			// TODO: emptyRest is hard to use here, as we start iterating
@@ -1009,7 +1012,7 @@ next:
 		it.checkBucket = checkBucket
 		return
 	}
-	b = b.overflow(t)
+	b = b.overflow(t)    //换一个b
 	i = 0
 	goto next
 }
