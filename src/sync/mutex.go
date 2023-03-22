@@ -77,7 +77,7 @@ const (
 
 // Lock locks m.
 // If the lock is already in use, the calling goroutine
-// blocks until the mutex is available.
+// blocks until the mutex is available.  获取不到锁会阻塞
 func (m *Mutex) Lock() {
 	// Fast path: grab unlocked mutex.
 	if atomic.CompareAndSwapInt32(&m.state, 0, mutexLocked) {
@@ -120,20 +120,20 @@ func (m *Mutex) lockSlow() {
 	awoke := false
 	iter := 0
 	old := m.state
-	for {
+	for {   //自旋
 		// Don't spin in starvation mode, ownership is handed off to waiters
 		// so we won't be able to acquire the mutex anyway.
-		if old&(mutexLocked|mutexStarving) == mutexLocked && runtime_canSpin(iter) {
+		if old&(mutexLocked|mutexStarving) == mutexLocked && runtime_canSpin(iter) {  //这边有自旋次数
 			// Active spinning makes sense.
 			// Try to set mutexWoken flag to inform Unlock
 			// to not wake other blocked goroutines.
 			if !awoke && old&mutexWoken == 0 && old>>mutexWaiterShift != 0 &&
-				atomic.CompareAndSwapInt32(&m.state, old, old|mutexWoken) {
+				atomic.CompareAndSwapInt32(&m.state, old, old|mutexWoken) {// 没有人排队了，被唤醒
 				awoke = true
 			}
 			runtime_doSpin()
 			iter++
-			old = m.state
+			old = m.state  //刷新状态
 			continue
 		}
 		new := old
@@ -141,7 +141,7 @@ func (m *Mutex) lockSlow() {
 		if old&mutexStarving == 0 {
 			new |= mutexLocked
 		}
-		if old&(mutexLocked|mutexStarving) != 0 {
+		if old&(mutexLocked|mutexStarving) != 0 {   //饥饿模式或者锁住，开始排队
 			new += 1 << mutexWaiterShift
 		}
 		// The current goroutine switches mutex to starvation mode.
@@ -151,7 +151,7 @@ func (m *Mutex) lockSlow() {
 		if starving && old&mutexLocked != 0 {
 			new |= mutexStarving
 		}
-		if awoke {
+		if awoke {  //被唤醒了
 			// The goroutine has been woken from sleep,
 			// so we need to reset the flag in either case.
 			if new&mutexWoken == 0 {
@@ -161,7 +161,7 @@ func (m *Mutex) lockSlow() {
 		}
 		if atomic.CompareAndSwapInt32(&m.state, old, new) {
 			if old&(mutexLocked|mutexStarving) == 0 {
-				break // locked the mutex with CAS
+				break // locked the mutex with CAS  获取了锁
 			}
 			// If we were already waiting before, queue at the front of the queue.
 			queueLifo := waitStartTime != 0
@@ -208,7 +208,7 @@ func (m *Mutex) lockSlow() {
 //
 // A locked Mutex is not associated with a particular goroutine.
 // It is allowed for one goroutine to lock a Mutex and then
-// arrange for another goroutine to unlock it.
+// arrange for another goroutine to unlock it. 解锁
 func (m *Mutex) Unlock() {
 	if race.Enabled {
 		_ = m.state
@@ -220,7 +220,7 @@ func (m *Mutex) Unlock() {
 	if new != 0 {
 		// Outlined slow path to allow inlining the fast path.
 		// To hide unlockSlow during tracing we skip one extra frame when tracing GoUnblock.
-		m.unlockSlow(new)
+		m.unlockSlow(new)  //慢解锁
 	}
 }
 
