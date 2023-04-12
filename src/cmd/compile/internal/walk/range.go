@@ -60,11 +60,11 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 
 	v1, v2 := nrange.Key, nrange.Value
 
-	if ir.IsBlank(v2) {
+	if ir.IsBlank(v2) {    //如果v2没有值，v2=nil
 		v2 = nil
 	}
 
-	if ir.IsBlank(v1) && v2 == nil {
+	if ir.IsBlank(v1) && v2 == nil {  //如果v1，v2都没有值，v1=nil
 		v1 = nil
 	}
 
@@ -106,18 +106,44 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		nfor.Cond = ir.NewBinaryExpr(base.Pos, ir.OLT, hv1, hn)
 		nfor.Post = ir.NewAssignStmt(base.Pos, hv1, ir.NewBinaryExpr(base.Pos, ir.OADD, hv1, ir.NewInt(1)))
 
-		// for range ha { body }
+		// for range ha { body }   使用 for range a {} 遍历数组和切片
 		if v1 == nil {
 			break
 		}
+		/**
+		如果循环是 for range a {}，那么就满足了上述代码中的条件 v1 == nil，即循环不关心数组的索引和数据，这种循环会被编译器转换成如下形式：
+		ha := a   //数组
+		hv1 := 0   //迭代器
+		hn := len(ha)  //数组长度
+		v1 := hv1
+		for ; hv1 < hn; hv1++ { 生成最简单的for循环
+		    ...
+		}
+		*/
 
-		// for v1 := range ha { body }
+		// for v1 := range ha { body }  使用 for i := range a {} 遍历数组和切片，只关心索引的情况；
+		//相对于上面，只是在循环体内多了一行
+		/**
+		ha := a
+		hv1 := 0
+		hn := len(ha)
+		v1 := hv1
+		for ; hv1 < hn; hv1++ {
+		    v1 = hv1
+		    ...
+		}
+		*/
 		if v2 == nil {
 			body = []ir.Node{rangeAssign(nrange, hv1)}
 			break
 		}
 
-		// for v1, v2 := range ha { body }
+		// for v1, v2 := range ha { body }  for i, elem := range a {} 遍历数组和切片，关心索引和数据的情况
+		/**
+		对于所有的 range 循环，Go 语言都会在编译期将原切片或者数组赋值给一个新变量 ha，
+		在赋值的过程中就发生了拷贝，而我们又通过 len 关键字预先获取了切片的长度，所以在循环中追加新的元素也不会改变循环执行的次数，
+		这也就解释了循环永动机一节提到的现象。
+		 */
 		if cheapComputableIndex(elem.Size()) {
 			// v1, v2 = hv1, ha[hv1]
 			tmp := ir.NewIndexExpr(base.Pos, ha, hv1)
@@ -219,10 +245,10 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		as := ir.NewAssignStmt(base.Pos, hu, ir.NewBinaryExpr(base.Pos, ir.OADD, huVal, ir.NewInt(elem.Size())))
 		nfor.Post = ir.NewBlockStmt(base.Pos, []ir.Node{nfor.Post, as})
 
-	case types.TMAP:
+	case types.TMAP:    //map
 		// order.stmt allocated the iterator for us.
 		// we only use a once, so no copy needed.
-		ha := a
+		ha := a   //赋值
 
 		hit := nrange.Prealloc
 		th := hit.Type()
@@ -231,16 +257,19 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		keysym := th.Field(0).Sym
 		elemsym := th.Field(1).Sym // ditto
 
+
+		//在遍历哈希表时，编译器会使用 runtime.mapiterinit 和 runtime.mapiternext 两个运行时函数重写原始的 for-range 循环：
 		fn := typecheck.LookupRuntime("mapiterinit")
 
 		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), th)
 		init = append(init, mkcallstmt1(fn, reflectdata.RangeMapRType(base.Pos, nrange), ha, typecheck.NodAddr(hit)))
 		nfor.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, keysym), typecheck.NodNil())
 
-		fn = typecheck.LookupRuntime("mapiternext")
+		fn = typecheck.LookupRuntime("mapiternext")   //runtime.mapiternext
 		fn = typecheck.SubstArgTypes(fn, th)
 		nfor.Post = mkcallstmt1(fn, typecheck.NodAddr(hit))
 
+		//处理 TMAP 节点时，编译器会根据 range 返回值的数量在循环体中插入需要的赋值语句：
 		key := ir.NewStarExpr(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, keysym))
 		if v1 == nil {
 			body = nil
@@ -372,6 +401,7 @@ func rangeAssign(n *ir.RangeStmt, key ir.Node) ir.Node {
 }
 
 // rangeAssign2 returns "n.Key, n.Value = key, value".
+//for key, val := range hash {} 后的结果
 func rangeAssign2(n *ir.RangeStmt, key, value ir.Node) ir.Node {
 	// Use OAS2 to correctly handle assignments
 	// of the form "v1, a[v1] = range".

@@ -199,14 +199,16 @@ type funcval struct {
 	// variable-size, fn-specific data here
 }
 
+//结构体表示包含方法的接口
 type iface struct {
-	tab  *itab
-	data unsafe.Pointer
+	tab  *itab     		//指向类型的指针
+	data unsafe.Pointer  //指向底层数据的指针
 }
 
+//结构体表示不包含任何方法的 interface{} 类型；
 type eface struct {
-	_type *_type
-	data  unsafe.Pointer
+	_type *_type   //指向类型的指针
+	data  unsafe.Pointer   //指向底层数据的指针
 }
 
 func efaceOf(ep *any) *eface {
@@ -937,11 +939,14 @@ type funcinl struct {
 // Needs to be in sync with
 // ../cmd/compile/internal/reflectdata/reflect.go:/^func.WriteTabs.
 type itab struct {
-	inter *interfacetype
-	_type *_type
+	inter *interfacetype    //具体类型
+	_type *_type			//接口类型
 	hash  uint32 // copy of _type.hash. Used for type switches.
+	// 对 _type.hash 的拷贝，当我们想将 interface 类型转换成具体类型时，可以使用该字段快速判断目标类型和具体类型 runtime._type 是否一致；
 	_     [4]byte
 	fun   [1]uintptr // variable sized. fun[0]==0 means _type does not implement inter.
+	// 是一个动态大小的数组，它是一个用于动态派发的虚函数表，存储了一组函数指针。
+	//虽然该变量被声明成大小固定的数组，但是在使用时会通过原始指针获取其中的数据，所以 fun 数组中保存的元素数量是不确定的；
 }
 
 // Lock-free stack node.
