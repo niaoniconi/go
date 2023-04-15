@@ -266,7 +266,7 @@ func panicmemAddr(addr uintptr) {
 }
 
 // Create a new deferred function fn, which has no arguments and results.
-// The compiler turns a defer statement into a call to this.
+// The compiler turns a defer statement into a call to this.  deferproc origin code :make defer call
 func deferproc(fn func()) {
 	gp := getg()
 	if gp.m.curg != gp {
@@ -820,7 +820,7 @@ func (*PanicNilError) RuntimeError() {}
 
 var panicnil = &godebugInc{name: "panicnil"}
 
-// The implementation of the predeclared function panic.
+// The implementation of the predeclared function panic.  any
 func gopanic(e any) {
 	if e == nil {
 		if debug.panicnil.Load() != 1 {

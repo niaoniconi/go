@@ -1507,7 +1507,7 @@ func (s *state) stmt(n ir.Node) {
 			if n.Esc() == ir.EscNever {
 				d = callDeferStack
 			}
-			s.callResult(n.Call.(*ir.CallExpr), d)
+			s.callResult(n.Call.(*ir.CallExpr), d)   //heap-allocated
 		}
 	case ir.OGO:
 		n := n.(*ir.GoDeferStmt)
@@ -5139,13 +5139,13 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 	}
 
 	var call *ssa.Value
-	if k == callDeferStack {
+	if k == callDeferStack {   //defer call
 		// Make a defer struct d on the stack.
 		if stksize != 0 {
 			s.Fatalf("deferprocStack with non-zero stack size %d: %v", stksize, n)
 		}
 
-		t := deferstruct()
+		t := deferstruct() // Make a defer struct d on the stack.
 		d := typecheck.TempAt(n.Pos(), s.curfn, t)
 
 		if t.HasPointers() {

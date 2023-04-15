@@ -98,7 +98,7 @@ func selparkcommit(gp *g, _ unsafe.Pointer) bool {
 	}
 	return true
 }
-
+//go协程阻塞
 func block() {
 	gopark(nil, nil, waitReasonSelectNoCases, traceEvGoStop, 1) // forever
 }
@@ -162,7 +162,7 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
 	// cases correctly, and they are rare enough not to bother
 	// optimizing (and needing to test).
 
-	// generate permuted order
+	// generate permuted order   加入随机因素，改变伦旭数据
 	norder := 0
 	for i := range scases {
 		cas := &scases[i]
@@ -284,18 +284,20 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
 		casi = -1
 		goto retc
 	}
-
+	//第一阶段的主要职责是查找所有 case 中是否有可以立刻被处理的 Channel。
+	//无论是在等待的 Goroutine 上还是缓冲区中，只要存在数据满足条件就会立刻处理，如果不能立刻找到活跃的 Channel 就会进入循环的下一阶段，
+	//按照需要将当前 Goroutine 加入到 Channel 的 sendq 或者 recvq 队列中：
 	// pass 2 - enqueue on all chans
-	gp = getg()
+	gp = getg()  //getg returns the pointer to the current g.
 	if gp.waiting != nil {
 		throw("gp.waiting != nil")
 	}
-	nextp = &gp.waiting
+	nextp = &gp.waiting // // sudog structures this g is waiting on (that have a valid elem ptr); in lock order
 	for _, casei := range lockorder {
 		casi = int(casei)
 		cas = &scases[casi]
 		c = cas.c
-		sg := acquireSudog()
+		sg := acquireSudog()   //The sudo of the goroutine
 		sg.g = gp
 		sg.isSelect = true
 		// No stack splits between assigning elem and enqueuing

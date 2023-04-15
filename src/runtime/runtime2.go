@@ -990,7 +990,7 @@ func extendRandom(r []byte, n int) {
 // Some defers will be allocated on the stack and some on the heap.
 // All defers are logically part of the stack, so write barriers to
 // initialize them are not required. All defers must be manually scanned,
-// and for heap defers, marked.
+// and for heap defers, marked. The struct of defer
 type _defer struct {
 	started bool
 	heap    bool

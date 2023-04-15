@@ -28,17 +28,17 @@ func walkSelect(sel *ir.SelectStmt) {
 
 	base.Pos = lno
 }
-
+// select case的实现
 func walkSelectCases(cases []*ir.CommClause) []ir.Node {
 	ncas := len(cases)
 	sellineno := base.Pos
 
-	// optimization: zero-case select
+	// optimization: zero-case select 没有case
 	if ncas == 0 {
 		return []ir.Node{mkcallstmt("block")}
 	}
 
-	// optimization: one-case select: single op.
+	// optimization: one-case select: single op. 只有一个case
 	if ncas == 1 {
 		cas := cases[0]
 		ir.SetPos(cas)

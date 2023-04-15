@@ -286,7 +286,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 	case ir.OCLOSE:
 		n := n.(*ir.UnaryExpr)
 		return walkClose(n, init)
-
+	//创建channel
 	case ir.OMAKECHAN:
 		n := n.(*ir.MakeExpr)
 		return walkMakeChan(n, init)
@@ -329,7 +329,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 
 	case ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT, ir.OSTRUCTLIT, ir.OPTRLIT:
 		return walkCompLit(n, init)
-
+	//osend节点，给chan写数据
 	case ir.OSEND:
 		n := n.(*ir.SendStmt)
 		return walkSend(n, init)

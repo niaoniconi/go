@@ -691,7 +691,7 @@ func tcMake(n *ir.CallExpr) ir.Node {
 		nn = ir.NewMakeExpr(n.Pos(), ir.OMAKEMAP, l, nil)
 		nn.SetEsc(n.Esc())
 
-	case types.TCHAN:
+	case types.TCHAN:   //如果是makechan，做一下转换
 		l = nil
 		if i < len(args) {
 			l = args[i]
@@ -707,7 +707,7 @@ func tcMake(n *ir.CallExpr) ir.Node {
 				return n
 			}
 		} else {
-			l = ir.NewInt(0)
+			l = ir.NewInt(0)  //不带缓冲区的同步
 		}
 		nn = ir.NewMakeExpr(n.Pos(), ir.OMAKECHAN, l, nil)
 	}

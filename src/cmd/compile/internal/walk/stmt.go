@@ -105,7 +105,7 @@ func walkStmt(n ir.Node) ir.Node {
 	case ir.ODEFER:
 		n := n.(*ir.GoDeferStmt)
 		ir.CurFunc.SetHasDefer(true)
-		ir.CurFunc.NumDefers++
+		ir.CurFunc.NumDefers++   //OpenCodedDeferLimit
 		if ir.CurFunc.NumDefers > maxOpenDefers {
 			// Don't allow open-coded defers if there are more than
 			// 8 defers in the function, since we use a single

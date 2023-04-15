@@ -70,6 +70,7 @@ func makechan64(t *chantype, size int64) *hchan {
 	return makechan(t, int(size))
 }
 
+//创建channel的实际代码
 func makechan(t *chantype, size int) *hchan {
 	elem := t.elem
 
@@ -152,14 +153,14 @@ func chansend1(c *hchan, elem unsafe.Pointer) {
  * then the protocol will not
  * sleep but return if it could
  * not complete.
- *
+ *chan 发送
  * sleep can wake up with g.param == nil
  * when a channel involved in the sleep has
  * been closed.  it is easiest to loop and re-run
  * the operation; we'll see that it's now closed.
  */
 func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
-	if c == nil {
+	if c == nil {    //如果channel为空
 		if !block {
 			return false
 		}
@@ -200,13 +201,14 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 		t0 = cputicks()
 	}
 
-	lock(&c.lock)
+	lock(&c.lock)  //先上锁
 
-	if c.closed != 0 {
-		unlock(&c.lock)
-		panic(plainError("send on closed channel"))
+	if c.closed != 0 {   //如果channel关闭
+		unlock(&c.lock)   //解锁
+		panic(plainError("send on closed channel"))  //写操作会直接panic
 	}
 
+	//这个chan的等待队列中有goroutine  从接收队列 recvq 中取出最先陷入等待的 Goroutine 并直接向它发送数据：
 	if sg := c.recvq.dequeue(); sg != nil {
 		// Found a waiting receiver. We pass the value we want to send
 		// directly to the receiver, bypassing the channel buffer (if any).
@@ -310,11 +312,11 @@ func send(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
 		}
 	}
 	if sg.elem != nil {
-		sendDirect(c.elemtype, sg, ep)
+		sendDirect(c.elemtype, sg, ep)  //发送数据
 		sg.elem = nil
 	}
 	gp := sg.g
-	unlockf()
+	unlockf()   //解锁
 	gp.param = unsafe.Pointer(sg)
 	sg.success = true
 	if sg.releasetime != 0 {
@@ -467,6 +469,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 		if !block {
 			return
 		}
+		//如果channel是空，直接让出处理器的使用权
 		gopark(nil, nil, waitReasonChanReceiveNilChan, traceEvGoStop, 2)
 		throw("unreachable")
 	}
@@ -512,7 +515,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 	lock(&c.lock)
 
 	if c.closed != 0 {
-		if c.qcount == 0 {
+		if c.qcount == 0 {   //没有缓冲区
 			if raceenabled {
 				raceacquire(c.raceaddr())
 			}
@@ -523,7 +526,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 			return true, false
 		}
 		// The channel has been closed, but the channel's buffer have data.
-	} else {
+	} else {    //缓冲区仍然有数据
 		// Just found waiting sender with not closed.
 		if sg := c.sendq.dequeue(); sg != nil {
 			// Found a waiting sender. If buffer is size 0, receive value
@@ -691,7 +694,9 @@ func chanparkcommit(gp *g, chanLock unsafe.Pointer) bool {
 //	} else {
 //		... bar
 //	}
+//select 非阻塞发送
 func selectnbsend(c *hchan, elem unsafe.Pointer) (selected bool) {
+	//向send函数传入了非阻塞，接收方不存在或无缓冲空间时，会直接返回
 	return chansend(c, elem, false, getcallerpc())
 }
 
@@ -712,6 +717,7 @@ func selectnbsend(c *hchan, elem unsafe.Pointer) (selected bool) {
 //		... bar
 //	}
 func selectnbrecv(elem unsafe.Pointer, c *hchan) (selected, received bool) {
+	//也有是否阻塞的标识
 	return chanrecv(c, elem, false)
 }
 
