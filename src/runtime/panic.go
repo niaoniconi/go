@@ -820,7 +820,7 @@ func (*PanicNilError) RuntimeError() {}
 
 var panicnil = &godebugInc{name: "panicnil"}
 
-// The implementation of the predeclared function panic.  any
+// The implementation of the predeclared function panic.  any是模板类，泛型功能
 func gopanic(e any) {
 	if e == nil {
 		if debug.panicnil.Load() != 1 {
@@ -862,7 +862,7 @@ func gopanic(e any) {
 
 	var p _panic
 	p.arg = e
-	p.link = gp._panic
+	p.link = gp._panic  //panic也是链表
 	gp._panic = (*_panic)(noescape(unsafe.Pointer(&p)))
 
 	runningPanicDefers.Add(1)
@@ -872,7 +872,7 @@ func gopanic(e any) {
 	addOneOpenDeferFrame(gp, getcallerpc(), unsafe.Pointer(getcallersp()))
 
 	for {
-		d := gp._defer
+		d := gp._defer  //取出defer运行，直到为空
 		if d == nil {
 			break
 		}
@@ -907,7 +907,7 @@ func gopanic(e any) {
 		// will find d in the list and will mark d._panic (this panic) aborted.
 		d._panic = (*_panic)(noescape(unsafe.Pointer(&p)))
 
-		done := true
+		done := true   //执行defer，defer中有recover关键字就会触发gorecover
 		if d.openDefer {
 			done = runOpenDeferFrame(d)
 			if done && !d._panic.recovered {
@@ -935,7 +935,7 @@ func gopanic(e any) {
 			gp._defer = d.link
 			freedefer(d)
 		}
-		if p.recovered {
+		if p.recovered {  //如果当前defer有recover
 			gp._panic = p.link
 			if gp._panic != nil && gp._panic.goexit && gp._panic.aborted {
 				// A normal recover would bypass/abort the Goexit.  Instead,
@@ -1107,7 +1107,7 @@ var paniclk mutex
 
 // Unwind the stack after a deferred function calls recover
 // after a panic. Then arrange to continue running as though
-// the caller of the deferred function returned normally.
+// the caller of the deferred function returned normally.   recover之后，跳转到defer关键字调用的位置
 func recovery(gp *g) {
 	// Info about defer passed in G struct.
 	sp := gp.sigcode0

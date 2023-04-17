@@ -164,7 +164,7 @@ func AfterFunc(d Duration, f func()) *Timer {
 	t := &Timer{
 		r: runtimeTimer{
 			when: when(d),
-			f:    goFunc,
+			f:    goFunc,  //另一个协程
 			arg:  f,
 		},
 	}

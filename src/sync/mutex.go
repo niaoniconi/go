@@ -30,7 +30,7 @@ func fatal(string)
 // for any n < m.
 // A successful call to TryLock is equivalent to a call to Lock.
 // A failed call to TryLock does not establish any “synchronizes before”
-// relation at all.
+// relation at all.锁，最原始的
 type Mutex struct {
 	state int32
 	sema  uint32
@@ -41,7 +41,7 @@ type Locker interface {
 	Lock()
 	Unlock()
 }
-
+//状态位
 const (
 	mutexLocked = 1 << iota // mutex is locked
 	mutexWoken
@@ -87,6 +87,7 @@ func (m *Mutex) Lock() {
 		return
 	}
 	// Slow path (outlined so that the fast path can be inlined)
+	//如果互斥锁的状态不是 0 时就会调用 sync.Mutex.lockSlow 尝试通过自旋（Spinnig）等方式等待锁的释放，该方法的主体是一个非常大 for 循环，这里将它分成几个部分介绍获取锁的过程：
 	m.lockSlow()
 }
 

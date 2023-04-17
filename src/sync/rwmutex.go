@@ -34,7 +34,7 @@ import (
 // and the corresponding call to RUnlock “synchronizes before”
 // the n+1'th call to Lock.
 type RWMutex struct {
-	w           Mutex        // held if there are pending writers
+	w           Mutex        // held if there are pending writers 万物之源，互斥锁
 	writerSem   uint32       // semaphore for writers to wait for completing readers
 	readerSem   uint32       // semaphore for readers to wait for completing writers
 	readerCount atomic.Int32 // number of pending readers
