@@ -264,7 +264,7 @@ func Casp1(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool {
 
 //go:nosplit
 //go:noinline
-func Casuintptr(ptr *uintptr, old, new uintptr) bool {
+func Casuintptr(ptr *uintptr, old, new uintptr) bool {  //如果ptr==old，ptr=new
 	if *ptr == old {
 		*ptr = new
 		return true

@@ -37,6 +37,7 @@ type Cond struct {
 	noCopy noCopy
 
 	// L is held while observing or changing the condition
+	//有lock和unlock的接口
 	L Locker
 
 	notify  notifyList
@@ -64,7 +65,7 @@ func NewCond(l Locker) *Cond {
 //	... make use of condition ...
 //	c.L.Unlock()
 func (c *Cond) Wait() {
-	c.checker.check()
+	c.checker.check()  //这个会在运行中检查，copy了会panic
 	t := runtime_notifyListAdd(&c.notify)
 	c.L.Unlock()
 	runtime_notifyListWait(&c.notify, t)

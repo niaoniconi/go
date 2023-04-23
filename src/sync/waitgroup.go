@@ -21,7 +21,7 @@ import (
 // In the terminology of the Go memory model, a call to Done
 // “synchronizes before” the return of any Wait call that it unblocks.
 type WaitGroup struct {
-	noCopy noCopy
+	noCopy noCopy   //不让拷贝，不是直接阻止的
 
 	state atomic.Uint64 // high 32 bits are counter, low 32 bits are waiter count.
 	sema  uint32
@@ -29,7 +29,7 @@ type WaitGroup struct {
 
 // Add adds delta, which may be negative, to the WaitGroup counter.
 // If the counter becomes zero, all goroutines blocked on Wait are released.
-// If the counter goes negative, Add panics.
+// If the counter goes negative, Add panics.  hhhh
 //
 // Note that calls with a positive delta that occur when the counter is zero
 // must happen before a Wait. Calls with a negative delta, or calls with a
@@ -41,7 +41,7 @@ type WaitGroup struct {
 // new Add calls must happen after all previous Wait calls have returned.
 // See the WaitGroup example.
 func (wg *WaitGroup) Add(delta int) {
-	if race.Enabled {
+	if race.Enabled {    //what is this
 		if delta < 0 {
 			// Synchronize decrements with Wait.
 			race.ReleaseMerge(unsafe.Pointer(wg))
@@ -78,7 +78,7 @@ func (wg *WaitGroup) Add(delta int) {
 	// Reset waiters count to 0.
 	wg.state.Store(0)
 	for ; w != 0; w-- {
-		runtime_Semrelease(&wg.sema, false, 0)
+		runtime_Semrelease(&wg.sema, false, 0)  //唤醒goroutine
 	}
 }
 
@@ -113,6 +113,9 @@ func (wg *WaitGroup) Wait() {
 				// otherwise concurrent Waits will race with each other.
 				race.Write(unsafe.Pointer(&wg.sema))
 			}
+			// Semacquire waits until *s > 0 and then atomically decrements it.
+			// It is intended as a simple sleep primitive for use by the synchronization
+			// library and should not be used directly.
 			runtime_Semacquire(&wg.sema)
 			if wg.state.Load() != 0 {
 				panic("sync: WaitGroup is reused before previous Wait has returned")

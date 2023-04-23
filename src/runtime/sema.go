@@ -498,7 +498,7 @@ func notifyListAdd(l *notifyList) uint32 {
 // notifyListWait waits for a notification. If one has been sent since
 // notifyListAdd was called, it returns immediately. Otherwise, it blocks.
 //
-//go:linkname notifyListWait sync.runtime_notifyListWait
+//go:linkname notifyListWait sync.runtime_notifyListWait   具体的函数实现
 func notifyListWait(l *notifyList, t uint32) {
 	lockWithRank(&l.lock, lockRankNotifyList)
 
@@ -509,7 +509,7 @@ func notifyListWait(l *notifyList, t uint32) {
 	}
 
 	// Enqueue itself.
-	s := acquireSudog()
+	s := acquireSudog()   //拿到当前协程
 	s.g = getg()
 	s.ticket = t
 	s.releasetime = 0
@@ -518,7 +518,7 @@ func notifyListWait(l *notifyList, t uint32) {
 		t0 = cputicks()
 		s.releasetime = -1
 	}
-	if l.tail == nil {
+	if l.tail == nil {   //把当前协程放在cond原语的尾部
 		l.head = s
 	} else {
 		l.tail.next = s

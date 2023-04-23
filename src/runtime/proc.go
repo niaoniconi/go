@@ -675,7 +675,7 @@ func getGodebugEarly() string {
 //	call runtime·mstart
 //
 // The new G calls runtime·main.
-func schedinit() {
+func schedinit() {   //您就是调度器啊
 	lockInit(&sched.lock, lockRankSched)
 	lockInit(&sched.sysmonlock, lockRankSysmon)
 	lockInit(&sched.deferlock, lockRankDefer)
@@ -744,7 +744,7 @@ func schedinit() {
 	if n, ok := atoi32(gogetenv("GOMAXPROCS")); ok && n > 0 {
 		procs = n
 	}
-	if procresize(procs) != nil {
+	if procresize(procs) != nil {        //更新程序中处理器P的数量
 		throw("unknown runnable goroutine during bootstrap")
 	}
 	unlock(&sched.lock)
@@ -4232,10 +4232,10 @@ func newproc(fn *funcval) {
 	gp := getg()
 	pc := getcallerpc()
 	systemstack(func() {
-		newg := newproc1(fn, gp, pc)
+		newg := newproc1(fn, gp, pc)  //创建Goroutine
 
-		pp := getg().m.p.ptr()
-		runqput(pp, newg, true)
+		pp := getg().m.p.ptr()  //获取当前协程的处理器p的指针
+		runqput(pp, newg, true) //将 Goroutine 加入运行队列
 
 		if mainStarted {
 			wakep()
@@ -4245,18 +4245,19 @@ func newproc(fn *funcval) {
 
 // Create a new g in state _Grunnable, starting at fn. callerpc is the
 // address of the go statement that created this. The caller is responsible
-// for adding the new g to the scheduler.
+// for adding the new g to the scheduler.调用方加进pp吗？
 func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 	if fn == nil {
 		fatal("go of nil func value")
 	}
 
-	mp := acquirem() // disable preemption because we hold M and P in local vars.
+	mp := acquirem() // disable preemption because we hold M and P in local vars.  获取当前进程所在的m和p，抢占期间获取不到
 	pp := mp.p.ptr()
 	newg := gfget(pp)
 	if newg == nil {
 		newg = malg(_StackMin)
 		casgstatus(newg, _Gidle, _Gdead)
+		//存储nalg返回的goroutines，设置状态位gdead
 		allgadd(newg) // publishes with a g->status of Gdead so GC scanner doesn't look at uninitialized stack.
 	}
 	if newg.stack.hi == 0 {
@@ -4274,7 +4275,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 	if usesLR {
 		// caller's LR
 		*(*uintptr)(unsafe.Pointer(sp)) = 0
-		prepGoExitFrame(sp)
+		prepGoExitFrame(sp) //这应该是拷贝到栈上？
 		spArg += sys.MinFrameSize
 	}
 
@@ -4421,7 +4422,7 @@ retry:
 	if pp.gFree.empty() && (!sched.gFree.stack.empty() || !sched.gFree.noStack.empty()) {
 		lock(&sched.gFree.lock)
 		// Move a batch of free Gs to the P.
-		for pp.gFree.n < 32 {
+		for pp.gFree.n < 32 {  //栈和非栈都要过来填充
 			// Prefer Gs with stacks.
 			gp := sched.gFree.stack.pop()
 			if gp == nil {
@@ -4431,14 +4432,14 @@ retry:
 				}
 			}
 			sched.gFree.n--
-			pp.gFree.push(gp)
+			pp.gFree.push(gp)  //写到当前协程处理器的gfree列表中
 			pp.gFree.n++
 		}
 		unlock(&sched.gFree.lock)
 		goto retry
 	}
-	gp := pp.gFree.pop()
-	if gp == nil {
+	gp := pp.gFree.pop() //取头部第一个，是栈，push到head，pop到head
+	if gp == nil {  //如果还是没有，返回空
 		return nil
 	}
 	pp.gFree.n--
@@ -5944,7 +5945,7 @@ func runqempty(pp *p) bool {
 // assumptions.
 const randomizeScheduler = raceenabled
 
-// runqput tries to put g on the local runnable queue.
+// runqput tries to put g on the local runnable queue.  将g放在local队列
 // If next is false, runqput adds g to the tail of the runnable queue.
 // If next is true, runqput puts g in the pp.runnext slot.
 // If the run queue is full, runnext puts g on the global queue.
@@ -5954,11 +5955,12 @@ func runqput(pp *p, gp *g, next bool) {
 		next = false
 	}
 
-	if next {
+	if next {  //next是空
 	retryNext:
 		oldnext := pp.runnext
-		if !pp.runnext.cas(oldnext, guintptr(unsafe.Pointer(gp))) {
-			goto retryNext
+		//原子值需要运行时的支持，在原子值进行修改时，Goroutine 不应该被抢占，因此需要锁定 MP 之间的绑定关系：
+		if !pp.runnext.cas(oldnext, guintptr(unsafe.Pointer(gp))) {  //指针赋值的原子操作，
+			goto retryNext //复制失败，再次尝试
 		}
 		if oldnext == 0 {
 			return
@@ -5970,12 +5972,14 @@ func runqput(pp *p, gp *g, next bool) {
 retry:
 	h := atomic.LoadAcq(&pp.runqhead) // load-acquire, synchronize with consumers
 	t := pp.runqtail
-	if t-h < uint32(len(pp.runq)) {
+	if t-h < uint32(len(pp.runq)) {  //本地队列还没满
 		pp.runq[t%uint32(len(pp.runq))].set(gp)
 		atomic.StoreRel(&pp.runqtail, t+1) // store-release, makes the item available for consumption
 		return
 	}
-	if runqputslow(pp, gp, h, t) {
+	if runqputslow(pp, gp, h, t) {  //放在全局队列上，可能还要带点其他的任务，太满了
+		// Put g and a batch of work from local runnable queue on global queue.
+		// Executed only by the owner P.
 		return
 	}
 	// the queue is not full, now the put above must succeed

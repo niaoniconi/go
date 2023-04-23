@@ -330,7 +330,7 @@ type gobuf struct {
 	// write barriers.
 	sp   uintptr
 	pc   uintptr
-	g    guintptr
+	g    guintptr   //持有tuntime.gobuf的goroutine
 	ctxt unsafe.Pointer
 	ret  uintptr
 	lr   uintptr
@@ -406,7 +406,7 @@ type heldLockInfo struct {
 	rank     lockRank
 }
 
-type g struct {
+type g struct {  //原来您就是goroutine啊
 	// Stack parameters.
 	// stack describes the actual stack memory: [stack.lo, stack.hi).
 	// stackguard0 is the stack pointer compared in the Go stack growth prologue.
@@ -421,7 +421,7 @@ type g struct {
 	_panic    *_panic // innermost panic - offset known to liblink
 	_defer    *_defer // innermost defer
 	m         *m      // current m; offset known to arm liblink
-	sched     gobuf
+	sched     gobuf      //调度相关的数据
 	syscallsp uintptr // if status==Gsyscall, syscallsp = sched.sp to use during gc
 	syscallpc uintptr // if status==Gsyscall, syscallpc = sched.pc to use during gc
 	stktopsp  uintptr // expected sp at top of stack, to check in traceback
@@ -645,7 +645,7 @@ type p struct {
 	// only the owner P can CAS it to a valid G.
 	runnext guintptr
 
-	// Available G's (status == Gdead)
+	// Available G's (status == Gdead)  已经死掉的进程
 	gFree struct {
 		gList
 		n int32

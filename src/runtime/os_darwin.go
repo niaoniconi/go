@@ -129,7 +129,7 @@ func sigNoteSleep(*note) {
 	}
 }
 
-// BSD interface for threading.
+// BSD interface for threading.   获取cpu获取页大小
 func osinit() {
 	// pthread_create delayed until end of goenvs so that we
 	// can look at the environment first.
