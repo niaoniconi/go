@@ -2668,11 +2668,11 @@ func findRunnable() (gp *g, inheritTime, tryWakeP bool) {
 
 top:
 	pp := mp.p.ptr()
-	if sched.gcwaiting.Load() {
+	if sched.gcwaiting.Load() {    //正在gc中，直到m执行完当前gc，再继续进行
 		gcstopm()
 		goto top
 	}
-	if pp.runSafePointFn != 0 {
+	if pp.runSafePointFn != 0 {  //?
 		runSafePointFn()
 	}
 
@@ -3473,7 +3473,7 @@ func parkunlock_c(gp *g, lock unsafe.Pointer) bool {
 	return true
 }
 
-// park continuation on g0.
+// park continuation on g0.    真正暂停当前goroutine的
 func park_m(gp *g) {
 	mp := getg().m
 
@@ -3484,7 +3484,7 @@ func park_m(gp *g) {
 	// N.B. Not using casGToWaiting here because the waitreason is
 	// set by park_m's caller.
 	casgstatus(gp, _Grunning, _Gwaiting)
-	dropg()
+	dropg()     //移除线程和 Goroutine 之间的关联
 
 	if fn := mp.waitunlockf; fn != nil {
 		ok := fn(gp, mp.waitlock)
@@ -3812,7 +3812,7 @@ func reentersyscall(pc, sp uintptr) {
 //
 //go:nosplit
 //go:linkname entersyscall
-func entersyscall() {
+func entersyscall() {   //获取当前程序计数器和栈位置，and then use them as parameter call func reentersyscall
 	reentersyscall(getcallerpc(), getcallersp())
 }
 
